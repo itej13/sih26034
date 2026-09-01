@@ -1,0 +1,62 @@
+{
+  "pack": "lmpc@2026-07-01",
+  "effective_from": "2026-07-01",
+  "title": "Legal Metrology (Packaged Commodities) Rules, 2011, as amended to 1 July 2026",
+  "rules": [
+    {
+      "id": "r7-3-letter-height",
+      "rule_ref": "7(3)",
+      "rule_text": "The height of letters in the declaration shall not be less than 1 mm height and when blown, formed, molded, embossed or perforated, the height of letters shall not be less than 2 mm.",
+      "applies_to": "mrp",
+      "predicate": "min_mm",
+      "metric": "numeral_height_mm",
+      "threshold": 1.0,
+      "threshold_embossed": 2.0,
+      "message": "MRP numeral is below the minimum height of 1 mm."
+    },
+    {
+      "id": "r7-3-width-ratio",
+      "rule_ref": "7(3)",
+      "rule_text": "Provided that the width of the letter or numeral shall not be less than one third of its height, except in the case of numeral `1' and letters (i), (I) and (l);",
+      "applies_to": "mrp",
+      "predicate": "min_ratio",
+      "numerator": "numeral_width_mm",
+      "denominator": "numeral_height_mm",
+      "threshold": 0.3333,
+      "message": "MRP numerals are condensed below one third of their height."
+    },
+    {
+      "id": "r7-2-table-i",
+      "rule_ref": "7(2)",
+      "rule_text": "The height of any numeral in the declaration required under these rules, on the principal display panel shall not be less than, (i) as shown in Table-I, if the net quantity is declared in terms of weight or volume.",
+      "applies_to": "net_qty",
+      "predicate": "min_mm_lookup",
+      "metric": "numeral_height_mm",
+      "lookup_on": "net_qty_g_or_ml",
+      "table": [
+        { "up_to": 200, "mm": 1, "embossed_mm": 2 },
+        { "up_to": 500, "mm": 2, "embossed_mm": 4 },
+        { "up_to": null, "mm": 4, "embossed_mm": 6 }
+      ],
+      "message": "Net quantity numeral is below the minimum height required for this pack size."
+    },
+    {
+      "id": "r8-1-clear-space",
+      "rule_ref": "8(1)",
+      "rule_text": "Provided that the area surrounding the quantity declaration shall be free from printed information (a) above and below by a space equal to at least the height of the numeral in the declaration, and (b) to the left and right by a space at least twice the height of numeral in the declaration.",
+      "applies_to": "net_qty",
+      "predicate": "clear_space",
+      "vertical_multiple": 1,
+      "horizontal_multiple": 2,
+      "message": "Printed matter intrudes into the clear space required around the net quantity declaration."
+    },
+    {
+      "id": "r6-2-consumer-care",
+      "rule_ref": "6(2)",
+      "rule_text": "Every package shall bear the name, address, telephone number, e mail address, if available, of the person who can be or the office which can be, contacted, in case of consumer complaints.",
+      "applies_to": "consumer_care",
+      "predicate": "present",
+      "message": "Consumer care contact details are missing."
+    }
+  ]
+}

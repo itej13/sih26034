@@ -1,0 +1,5 @@
+# opencv-contrib (not plain opencv) — cv2.aruco lives in contrib.
+# headless — no GUI libs, which keeps the deployed function small.
+opencv-contrib-python-headless==4.14.0.94
+# numpy is left unpinned on purpose: opencv declares the range it needs.
+numpy

@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# sih26034
 
-## Getting Started
+Smart India Hackathon 2026 · **SIH26034** · Department of Consumer Affairs
 
-First, run the development server:
+Scans a packaged commodity's label and checks it against the Legal Metrology (Packaged
+Commodities) Rules, 2011.
+
+The rules are written in **millimetres** — minimum letter height under Rule 7(3), the height
+tables under 7(2), the clear space required around the net quantity under 8(1). A photograph
+carries no scale, so a pipeline that compares pixel height to a constant has not checked font
+size; it has checked how close the phone was held. This one recovers real-world scale from a
+printed ArUco card in the frame, reports every measurement with an uncertainty band, and returns
+**indeterminate** rather than a verdict when that band straddles the legal threshold.
+
+> Interim repo name. The project name is undecided — nothing is branded yet, so renaming later
+> costs nothing.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then `/capture` to upload, `/result/sc_0142` for a failing scan, `/result/sc_0143` for a clean
+one, `/dashboard` and `/history` for the lists.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For the metrology core:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python scripts/check_measure.py
+```
 
-## Learn More
+## Day 0 is done when
 
-To learn more about Next.js, take a look at the following resources:
+- [x] Repo exists, deploys, everyone can push
+- [x] `fixtures/scan.sample.json` — the Label Object Model, frozen
+- [x] `lib/types.ts` — the same shape in TypeScript
+- [x] `packs/lmpc-2026-07-01.json` — five real rules as a template
+- [x] `api/measure.py` — OpenCV deploys, and the homography is proven against synthetic markers
+- [x] Two runnable checks, both green
+- [ ] Twelve packets photographed with the card in frame, caliper ground truth recorded
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contract-first
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Three developers, seven days, one product. The way that fails is everyone waiting on the hard
+part and integrating at 2 a.m. on the last night. So two shapes are frozen on Day 0 and everyone
+builds against a **file** instead of against a person:
 
-## Deploy on Vercel
+- **`fixtures/scan.sample.json`** — the Label Object Model. What stages 2–5 produce and what
+  stages 1 and 6 consume.
+- **`packs/*.json`** — the rule pack. What Advik produces and what stage 5 consumes.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Shaurya's result screen must render completely from the fixture before a line of OpenCV exists.
+`npm run check:contract` fails if either shape drifts.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## The pipeline
+
+| Stage | Does | Owner |
+|---|---|---|
+| 1 · Capture | Browser camera, calibration card in frame | Shaurya |
+| 2 · Calibrate | ArUco → homography → millimetres per pixel | Tejas |
+| 3 · Read | Vision model → typed fields. **Semantics only** | Tejas |
+| 4 · Measure | Glyph ink profile → mm, with an uncertainty budget | Tejas |
+| 5 · Judge | Rule-pack predicates, guard-banded verdicts | Tejas · rules by Advik |
+| 6 · Record | Hash, chain, search, PDF and DOCX | Dhruv |
+
+A model reads. OpenCV measures. A JSON file written by a human decides. See `AGENTS.md` for the
+working rules and `/Users/tejasdas/Developer/DO NOT TOUCH/Projects/projects/sih26034/` for why
+any of it is the way it is.
+
+## Checks
+
+```bash
+npm run check           # contract + lint, before every push
+npm run check:measure   # the metrology core against synthetic markers
+```
+
+`check_measure.py` asserts that scale is recovered exactly, that it does **not** move with camera
+distance, that a tilted card raises the squareness residual, and that a frame with no marker
+raises rather than defaulting. If it fails, nothing downstream can be trusted.

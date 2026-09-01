@@ -1,0 +1,322 @@
+{
+  "$comment": "FROZEN CONTRACT — Day 0, 2026-09-01. The Label Object Model. Every input source reduces to this shape; every rule is a predicate over it. Do not change field names without all three developers agreeing in the same conversation. This example is deliberately NON_COMPLIANT and carries one finding of each verdict state so the UI can be built against all three.",
+  "scan_id": "sc_0142",
+  "captured_at": "2026-09-04T11:20:31Z",
+  "officer_id": "off_007",
+  "image_url": "/fixtures/sample-pack.jpg",
+  "image_sha256": "3b1f2c8a9d4e6f70b5a2c1d8e9f04a3b6c7d8e9f0a1b2c3d4e5f60718293a4b5",
+  "gps": {
+    "lat": 28.7501,
+    "lon": 77.1177
+  },
+  "calibration": {
+    "mode": "aruco_card",
+    "marker_mm": 40.0,
+    "mm_per_px": 0.0412,
+    "uncertainty_mm_per_px": 0.0006,
+    "squareness_residual": 0.004
+  },
+  "pdp": {
+    "poly": [
+      [
+        40,
+        24
+      ],
+      [
+        340,
+        24
+      ],
+      [
+        340,
+        224
+      ],
+      [
+        40,
+        224
+      ]
+    ],
+    "area_cm2": 214.0,
+    "confidence": 0.88
+  },
+  "fields": [
+    {
+      "key": "mrp",
+      "text": "MRP ₹ 45.00 (incl. of all taxes)",
+      "value": 45.0,
+      "poly": [
+        [
+          210,
+          340
+        ],
+        [
+          398,
+          340
+        ],
+        [
+          398,
+          372
+        ],
+        [
+          210,
+          372
+        ]
+      ],
+      "numeral_poly": [
+        [
+          268,
+          342
+        ],
+        [
+          352,
+          342
+        ],
+        [
+          352,
+          370
+        ],
+        [
+          268,
+          370
+        ]
+      ],
+      "confidence": 0.94,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "net_qty",
+      "text": "Net Qty. 100 g",
+      "value": {
+        "n": 100,
+        "unit": "g"
+      },
+      "poly": [
+        [
+          210,
+          392
+        ],
+        [
+          372,
+          392
+        ],
+        [
+          372,
+          420
+        ],
+        [
+          210,
+          420
+        ]
+      ],
+      "numeral_poly": [
+        [
+          286,
+          394
+        ],
+        [
+          330,
+          394
+        ],
+        [
+          330,
+          418
+        ],
+        [
+          286,
+          418
+        ]
+      ],
+      "confidence": 0.96,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "mfg_date",
+      "text": "MFD 03/2026",
+      "value": "2026-03",
+      "poly": [
+        [
+          210,
+          436
+        ],
+        [
+          340,
+          436
+        ],
+        [
+          340,
+          458
+        ],
+        [
+          210,
+          458
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.91,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "manufacturer",
+      "text": "Acme Foods Pvt Ltd, Plot 14, MIDC, Pune 411001",
+      "value": null,
+      "poly": [
+        [
+          60,
+          470
+        ],
+        [
+          400,
+          470
+        ],
+        [
+          400,
+          496
+        ],
+        [
+          60,
+          496
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.89,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "consumer_care",
+      "text": "Consumer care: care@acmefoods.in | 1800-000-000",
+      "value": null,
+      "poly": [
+        [
+          60,
+          500
+        ],
+        [
+          420,
+          500
+        ],
+        [
+          420,
+          524
+        ],
+        [
+          60,
+          524
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.87,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "generic_name",
+      "text": "Roasted Almonds",
+      "value": null,
+      "poly": [
+        [
+          60,
+          280
+        ],
+        [
+          300,
+          280
+        ],
+        [
+          300,
+          320
+        ],
+        [
+          60,
+          320
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.82,
+      "corrected_by_officer": false
+    }
+  ],
+  "other_print": [
+    {
+      "poly": [
+        [
+          402,
+          318
+        ],
+        [
+          520,
+          318
+        ],
+        [
+          520,
+          352
+        ],
+        [
+          402,
+          352
+        ]
+      ],
+      "note": "20% EXTRA flash"
+    }
+  ],
+  "measurements": [
+    {
+      "field": "mrp",
+      "metric": "numeral_height_mm",
+      "value": 0.82,
+      "expanded_uncertainty_mm": 0.1,
+      "k": 2
+    },
+    {
+      "field": "mrp",
+      "metric": "numeral_width_mm",
+      "value": 0.44,
+      "expanded_uncertainty_mm": 0.08,
+      "k": 2
+    },
+    {
+      "field": "net_qty",
+      "metric": "numeral_height_mm",
+      "value": 1.03,
+      "expanded_uncertainty_mm": 0.14,
+      "k": 2
+    }
+  ],
+  "findings": [
+    {
+      "rule_ref": "7(3)",
+      "verdict": "VIOLATION",
+      "measured": "0.82 ± 0.10 mm",
+      "required": "≥ 1.00 mm",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "The height of letters in the declaration shall not be less than 1 mm height and when blown, formed, molded, embossed or perforated, the height of letters shall not be less than 2 mm.",
+      "message": "MRP numeral is below the minimum height of 1 mm."
+    },
+    {
+      "rule_ref": "7(2)",
+      "verdict": "INDETERMINATE",
+      "measured": "1.03 ± 0.14 mm",
+      "required": "≥ 1.00 mm (Table I, up to 200 g/ml)",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "The height of any numeral in the declaration required under these rules, on the principal display panel shall not be less than as shown in Table-I, if the net quantity is declared in terms of weight or volume.",
+      "message": "Net quantity numeral height cannot be decided at this uncertainty. Re-scan with the calibration card flat against the panel."
+    },
+    {
+      "rule_ref": "8(1)",
+      "verdict": "VIOLATION",
+      "measured": "promotional print 1.8 mm from the declaration",
+      "required": "≥ 2.06 mm clear to left and right (2 × numeral height)",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "Provided that the area surrounding the quantity declaration shall be free from printed information ... to the left and right by a space at least twice the height of numeral in the declaration.",
+      "message": "The \"20% EXTRA\" flash intrudes into the clear space required around the net quantity declaration."
+    },
+    {
+      "rule_ref": "6(2)",
+      "verdict": "COMPLIANT",
+      "measured": "name, address, telephone and e-mail all present",
+      "required": "all four sub-fields",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "Every package shall bear the name, address, telephone number, e mail address, if available, of the person who can be or the office which can be, contacted, in case of consumer complaints.",
+      "message": null
+    }
+  ],
+  "rule_pack": "lmpc@2026-07-01",
+  "overall": "VIOLATION"
+}

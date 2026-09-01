@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:contract": "node scripts/check-contract.mjs",
+    "check:measure": "python3 scripts/check_measure.py",
+    "check": "npm run check:contract && npm run lint"
   },
   "dependencies": {
     "next": "16.3.4",

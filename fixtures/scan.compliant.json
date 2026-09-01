@@ -1,0 +1,300 @@
+{
+  "$comment": "A fully COMPLIANT scan. Second fixture so the result screen and dashboard can be built against a clean case as well as a failing one.",
+  "scan_id": "sc_0143",
+  "captured_at": "2026-09-04T11:20:31Z",
+  "officer_id": "off_007",
+  "image_url": "/fixtures/sample-pack.jpg",
+  "image_sha256": "9f8e7d6c5b4a39281706f5e4d3c2b1a09876543210fedcba9876543210fedcb1",
+  "gps": {
+    "lat": 28.7501,
+    "lon": 77.1177
+  },
+  "calibration": {
+    "mode": "aruco_card",
+    "marker_mm": 40.0,
+    "mm_per_px": 0.0412,
+    "uncertainty_mm_per_px": 0.0006,
+    "squareness_residual": 0.004
+  },
+  "pdp": {
+    "poly": [
+      [
+        40,
+        24
+      ],
+      [
+        340,
+        24
+      ],
+      [
+        340,
+        224
+      ],
+      [
+        40,
+        224
+      ]
+    ],
+    "area_cm2": 214.0,
+    "confidence": 0.88
+  },
+  "fields": [
+    {
+      "key": "mrp",
+      "text": "MRP ₹ 45.00 (incl. of all taxes)",
+      "value": 45.0,
+      "poly": [
+        [
+          210,
+          340
+        ],
+        [
+          398,
+          340
+        ],
+        [
+          398,
+          372
+        ],
+        [
+          210,
+          372
+        ]
+      ],
+      "numeral_poly": [
+        [
+          268,
+          342
+        ],
+        [
+          352,
+          342
+        ],
+        [
+          352,
+          370
+        ],
+        [
+          268,
+          370
+        ]
+      ],
+      "confidence": 0.94,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "net_qty",
+      "text": "Net Qty. 100 g",
+      "value": {
+        "n": 100,
+        "unit": "g"
+      },
+      "poly": [
+        [
+          210,
+          392
+        ],
+        [
+          372,
+          392
+        ],
+        [
+          372,
+          420
+        ],
+        [
+          210,
+          420
+        ]
+      ],
+      "numeral_poly": [
+        [
+          286,
+          394
+        ],
+        [
+          330,
+          394
+        ],
+        [
+          330,
+          418
+        ],
+        [
+          286,
+          418
+        ]
+      ],
+      "confidence": 0.96,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "mfg_date",
+      "text": "MFD 03/2026",
+      "value": "2026-03",
+      "poly": [
+        [
+          210,
+          436
+        ],
+        [
+          340,
+          436
+        ],
+        [
+          340,
+          458
+        ],
+        [
+          210,
+          458
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.91,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "manufacturer",
+      "text": "Acme Foods Pvt Ltd, Plot 14, MIDC, Pune 411001",
+      "value": null,
+      "poly": [
+        [
+          60,
+          470
+        ],
+        [
+          400,
+          470
+        ],
+        [
+          400,
+          496
+        ],
+        [
+          60,
+          496
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.89,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "consumer_care",
+      "text": "Consumer care: care@acmefoods.in | 1800-000-000",
+      "value": null,
+      "poly": [
+        [
+          60,
+          500
+        ],
+        [
+          420,
+          500
+        ],
+        [
+          420,
+          524
+        ],
+        [
+          60,
+          524
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.87,
+      "corrected_by_officer": false
+    },
+    {
+      "key": "generic_name",
+      "text": "Roasted Almonds",
+      "value": null,
+      "poly": [
+        [
+          60,
+          280
+        ],
+        [
+          300,
+          280
+        ],
+        [
+          300,
+          320
+        ],
+        [
+          60,
+          320
+        ]
+      ],
+      "numeral_poly": null,
+      "confidence": 0.82,
+      "corrected_by_officer": false
+    }
+  ],
+  "other_print": [],
+  "measurements": [
+    {
+      "field": "mrp",
+      "metric": "numeral_height_mm",
+      "value": 1.62,
+      "expanded_uncertainty_mm": 0.09,
+      "k": 2
+    },
+    {
+      "field": "mrp",
+      "metric": "numeral_width_mm",
+      "value": 0.71,
+      "expanded_uncertainty_mm": 0.07,
+      "k": 2
+    },
+    {
+      "field": "net_qty",
+      "metric": "numeral_height_mm",
+      "value": 1.48,
+      "expanded_uncertainty_mm": 0.08,
+      "k": 2
+    }
+  ],
+  "findings": [
+    {
+      "rule_ref": "7(3)",
+      "verdict": "COMPLIANT",
+      "measured": "1.62 ± 0.09 mm",
+      "required": "≥ 1.00 mm",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "The height of letters in the declaration shall not be less than 1 mm height and when blown, formed, molded, embossed or perforated, the height of letters shall not be less than 2 mm.",
+      "message": null
+    },
+    {
+      "rule_ref": "7(2)",
+      "verdict": "COMPLIANT",
+      "measured": "1.48 ± 0.08 mm",
+      "required": "≥ 1.00 mm (Table I, up to 200 g/ml)",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "The height of any numeral in the declaration required under these rules, on the principal display panel shall not be less than as shown in Table-I, if the net quantity is declared in terms of weight or volume.",
+      "message": null
+    },
+    {
+      "rule_ref": "8(1)",
+      "verdict": "COMPLIANT",
+      "measured": "no printed matter within the required clear space",
+      "required": "≥ 2.96 mm clear to left and right (2 × numeral height)",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "Provided that the area surrounding the quantity declaration shall be free from printed information ... to the left and right by a space at least twice the height of numeral in the declaration.",
+      "message": null
+    },
+    {
+      "rule_ref": "6(2)",
+      "verdict": "COMPLIANT",
+      "measured": "name, address, telephone and e-mail all present",
+      "required": "all four sub-fields",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "Every package shall bear the name, address, telephone number, e mail address, if available, of the person who can be or the office which can be, contacted, in case of consumer complaints.",
+      "message": null
+    }
+  ],
+  "rule_pack": "lmpc@2026-07-01",
+  "overall": "COMPLIANT"
+}
