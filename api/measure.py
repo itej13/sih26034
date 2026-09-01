@@ -42,7 +42,12 @@ class NoMarker(Exception):
 
 
 def rectify(img):
-    """Detect the marker and return (rectified image, mm_per_px, squareness residual)."""
+    """Detect the marker and rectify the plane it lies on.
+
+    Returns a dict with the rectified image, the millimetres-per-pixel constant that now
+    holds across that plane, the squareness residual, and the homography itself — callers
+    need H to map a point from the original photograph into rectified coordinates.
+    """
     detector = cv2.aruco.ArucoDetector(_DICT)
     corners, ids, _ = detector.detectMarkers(img)
     if ids is None or len(corners) == 0:
@@ -64,7 +69,18 @@ def rectify(img):
     out_h, out_w = img.shape[0], img.shape[1]
     rect = cv2.warpPerspective(img, h_matrix, (out_w, out_h))
 
-    return rect, MARKER_MM / PX_PER_MARKER, squareness_residual(src)
+    return {
+        "image": rect,
+        "mm_per_px": MARKER_MM / PX_PER_MARKER,
+        "squareness": squareness_residual(src),
+        "H": h_matrix,
+    }
+
+
+def to_rectified(h_matrix, points):
+    """Map points from the original photograph into rectified coordinates."""
+    pts = np.asarray(points, dtype=np.float32).reshape(-1, 1, 2)
+    return cv2.perspectiveTransform(pts, h_matrix).reshape(-1, 2)
 
 
 def squareness_residual(src):
@@ -80,45 +96,184 @@ def squareness_residual(src):
     return float(np.std(edges) / np.mean(edges))
 
 
-def numeral_height_mm(rect, numeral_poly, mm_per_px):
+# ---------------------------------------------------------------------------
+# Glyph metrology — Day 1 spike
+#
+# Rule 7 measures the height of the numeral. An OCR bounding box is not that: it
+# includes ascenders, descenders and padding, and it is drawn around whatever the
+# recogniser grouped together, which for an MRP field is usually "MRP ₹ 45.00
+# (incl. of all taxes)". Measuring the box instead of the ink biases every reading
+# upward, which hides exactly the violations this project exists to find.
+#
+# So we measure the ink.
+# ---------------------------------------------------------------------------
+
+# Sub-pixel localisation error at each half-maximum crossing, in pixels. Two crossings
+# per measurement. Empirical placeholder until it is characterised against the caliper
+# ground-truth sheet — see check_measure.py, which asserts the pipeline, not this number.
+U_EDGE_PX_PER_CROSSING = 0.25
+
+
+def _crop(rect, poly, margin_frac=0.25):
+    """Axis-aligned crop around a polygon, with background margin left in place.
+
+    The margin is not cosmetic: polarity detection reads the border ring, and the
+    coverage profile needs to reach the background on both sides of the glyphs.
     """
-    Day 1 (Tejas). Measure the INK, not the bounding box.
+    pts = np.asarray(poly, dtype=np.float32)
+    x0, y0 = pts.min(axis=0)
+    x1, y1 = pts.max(axis=0)
+    m = max(2.0, (y1 - y0) * margin_frac)
+    h, w = rect.shape[:2]
+    xs, xe = int(max(0, x0 - m)), int(min(w, x1 + m))
+    ys, ye = int(max(0, y0 - m)), int(min(h, y1 + m))
+    if xe - xs < 4 or ye - ys < 4:
+        raise ValueError("numeral polygon is too small to measure")
+    return rect[ys:ye, xs:xe]
 
-    A bounding box includes ascenders, descenders and padding, and biases every reading
-    upward — which hides exactly the violations this project exists to find.
 
-        1. Crop numeral_poly out of the rectified image.
-        2. Deskew: threshold to an ink mask, cv2.minAreaRect on the ink, rotate by its angle.
-        3. Separate ink from background: Otsu, falling back to adaptive on low contrast.
-           Decide polarity from the border ring of the crop — light-on-dark packaging is
-           common and a global assumption measures the gaps between digits instead.
-        4. Coverage profile: mask.sum(axis=1), ink pixels per row.
-        5. Sub-pixel edges: the two rows where the profile crosses 50% of its plateau,
-           interpolated. Not the first and last non-zero row, which one stray pixel of
-           JPEG ringing moves.
-        6. height_mm = height_px * mm_per_px.
+def _ink_mask(crop, threshold_shift=0.0):
+    """Binary mask where True is ink, whichever way round the printing is.
 
-    Return (value_mm, expanded_uncertainty_mm) — never a bare number. The uncertainty
-    combines corner localisation, the squareness residual, edge localisation and threshold
-    sensitivity in quadrature, expanded at k=2.
+    Polarity is decided from the border ring rather than assumed. Light text on a dark
+    pack is common, and a global assumption measures the gaps between digits instead of
+    the digits — a failure that produces a plausible number rather than an error.
     """
-    raise NotImplementedError("Day 1 spike")
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+
+    otsu, _ = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    level = float(np.clip(otsu * (1.0 + threshold_shift), 1, 254))
+
+    ring = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
+    background_is_light = float(np.median(ring)) > level
+
+    mask = gray < level if background_is_light else gray > level
+    # One open pass removes speckle without eating a thin stroke.
+    mask = cv2.morphologyEx(
+        mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8)
+    ).astype(bool)
+    return mask, level
 
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        """Health check. Confirms the Python runtime and OpenCV actually deployed."""
-        body = json.dumps(
-            {
-                "ok": True,
-                "opencv": cv2.__version__,
-                "numpy": np.__version__,
-                "marker_mm": MARKER_MM,
-                "mm_per_px": MARKER_MM / PX_PER_MARKER,
-                "measure_implemented": False,
-            }
-        )
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(body.encode())
+def _deskew(crop):
+    """Rotate so the baseline is horizontal. Printing is rarely square to the marker."""
+    mask, _ = _ink_mask(crop)
+    pts = cv2.findNonZero(mask.astype(np.uint8))
+    if pts is None or len(pts) < 10:
+        return crop
+    angle = cv2.minAreaRect(pts)[-1]
+    if angle > 45:
+        angle -= 90
+    if abs(angle) < 0.5 or abs(angle) > 20:
+        # Nothing worth correcting, or a fit that has locked onto noise rather than a baseline.
+        return crop
+    h, w = crop.shape[:2]
+    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+    return cv2.warpAffine(
+        crop, m, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
+    )
+
+
+def _half_max_extent(profile):
+    """Distance between the two half-maximum crossings, interpolated between samples.
+
+    Not the first and last non-zero sample: one stray pixel of print noise or JPEG
+    ringing moves those, and at 0.1 mm per pixel one pixel is 10% of a 1 mm numeral.
+    """
+    nz = profile[profile > 0]
+    if nz.size == 0:
+        raise ValueError("no ink found in the crop")
+    half = float(np.percentile(nz, 75)) * 0.5
+
+    above = np.flatnonzero(profile >= half)
+    if above.size == 0:
+        raise ValueError("coverage profile never reaches half maximum")
+    first, last = int(above[0]), int(above[-1])
+
+    def cross(i, step):
+        """Linear interpolation between sample i and its neighbour outside the glyph."""
+        j = i - step
+        if j < 0 or j >= profile.size:
+            return float(i)
+        a, b = float(profile[j]), float(profile[i])
+        if b == a:
+            return float(i)
+        return j + (half - a) / (b - a) * step
+
+    return cross(last, -1) - cross(first, 1)
+
+
+def _glyph_widths_px(mask):
+    """Width of each connected glyph, so Rule 7(3)'s width-to-height ratio can be checked."""
+    n, _, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
+    tall = [s for s in stats[1:] if s[cv2.CC_STAT_HEIGHT] >= 0.4 * mask.shape[0]]
+    return sorted(s[cv2.CC_STAT_WIDTH] for s in tall)
+
+
+def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
+    """Measure a run of numerals. Returns millimetres with an expanded uncertainty.
+
+    Never returns a bare number. A measurement without a stated uncertainty is an
+    opinion, and every verdict in this system compares an interval to the legal limit
+    rather than a point value.
+    """
+    crop = _deskew(_crop(rect, poly))
+
+    heights, widths = [], []
+    for shift in (-0.10, 0.0, 0.10):
+        mask, _ = _ink_mask(crop, threshold_shift=shift)
+        heights.append(_half_max_extent(mask.sum(axis=1).astype(float)))
+        w = _glyph_widths_px(mask)
+        if w:
+            # ponytail: median glyph width. Rule 7(3) exempts the numeral 1 and the
+            # letters i/I/l, which are legitimately narrow; the median sidesteps them
+            # without a glyph classifier. Swap for per-glyph widths keyed to recognised
+            # characters if a pack is ever failed on this clause alone.
+            widths.append(float(np.median(w)))
+
+    height_px = heights[1]
+    if height_px <= 0:
+        raise ValueError("measured height is not positive")
+    height_mm = height_px * mm_per_px
+
+    # --- uncertainty budget, combined in quadrature -------------------------
+    # Every term below is in MILLIMETRES. Mixing a pixel count into this sum silently
+    # inflates the interval by 1/mm_per_px and turns every verdict into INDETERMINATE,
+    # which looks like caution rather than a bug — so keep the units explicit.
+    #
+    # Scale: marker-corner localisation, as a relative error on mm_per_px.
+    u_scale = height_mm * (u_mm_per_px / mm_per_px) if mm_per_px else 0.0
+    # Plane: the card not lying flat on the panel. Dominant term on curved packs.
+    u_plane = height_mm * squareness
+    # Edge: sub-pixel localisation of the two half-maximum crossings.
+    u_edge = (U_EDGE_PX_PER_CROSSING * np.sqrt(2)) * mm_per_px
+    # Threshold: how much the answer moves when ink/background is separated differently.
+    u_thresh = (max(heights) - min(heights)) / 2.0 * mm_per_px
+
+    u_c = float(np.sqrt(u_scale**2 + u_plane**2 + u_edge**2 + u_thresh**2))
+
+    return {
+        "height_mm": height_mm,
+        "width_mm": float(np.median(widths)) * mm_per_px if widths else None,
+        "expanded_uncertainty_mm": 2 * u_c,
+        "k": 2,
+        "components_mm": {
+            "scale": u_scale,
+            "plane": u_plane,
+            "edge": u_edge,
+            "threshold": u_thresh,
+        },
+    }
+
+
+def verdict(value_mm, expanded_uncertainty_mm, minimum_mm):
+    """Guard band. The reason a marginal measurement never becomes an accusation.
+
+    Mirrors verdictFor() in lib/types.ts — if you change one, change both.
+    """
+    if value_mm - expanded_uncertainty_mm > minimum_mm:
+        return "COMPLIANT"
+    if value_mm + expanded_uncertainty_mm < minimum_mm:
+        return "VIOLATION"
+    return "INDETERMINATE"

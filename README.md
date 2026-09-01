@@ -42,6 +42,32 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 - [x] Two runnable checks, both green
 - [ ] Twelve packets photographed with the card in frame, caliper ground truth recorded
 
+## Day 1 is done when
+
+- [x] `measure_numeral()` — crop, deskew, polarity, ink profile, sub-pixel edges, millimetres
+- [x] The uncertainty budget: scale, plane, edge and threshold terms, expanded at k=2
+- [x] Guard-banded verdicts, matching `verdictFor()` on the TypeScript side
+- [x] `scripts/spike.py` — a photograph in, millimetres out, from the command line
+- [x] Proven end to end on synthetic packs: 0.004–0.028 mm error at 1, 2 and 4 mm, with and
+      without perspective, and no false violation at any size
+- [ ] **Agrees with the caliper on three real packets** — the half no synthetic test can stand in for
+
+### Running the spike
+
+```bash
+.venv/bin/python scripts/spike.py photo.jpg                      # rectify, see the scale
+.venv/bin/python scripts/spike.py photo.jpg --box 268,342,84,28  # measure that box
+```
+
+The box is in **rectified** pixels, read off the `.rectified.png` the first command writes.
+At the default grid one pixel is 0.1 mm. `--debug` also writes the crop and the ink mask,
+which is what to look at first when a number seems wrong.
+
+Known resolution ceiling: `PX_PER_MARKER` fixes the rectified grid at 0.1 mm per pixel, so a
+0.5 mm numeral is five pixels tall however good the camera was. It still measures, but the
+uncertainty roughly triples and the answer becomes `INDETERMINATE` — correct behaviour, not a
+bug. Raise `PX_PER_MARKER` only if the source photographs carry the detail to justify it.
+
 ## Contract-first
 
 Three developers, seven days, one product. The way that fails is everyone waiting on the hard
