@@ -245,9 +245,19 @@ person has to hold the whole system in their head, and the frozen contract lives
 work on a branch, open a pull request, and it gets reviewed and merged. That is the only path in.
 
 This is enforced by GitHub, not by good manners: `main` rejects direct pushes, rejects
-force-pushes, cannot be deleted, and requires an approving review before a pull request can merge.
-If `git push origin main` fails for you, nothing is broken — that is the rule doing its job. Push
-your branch instead.
+force-pushes, cannot be deleted, and requires **both an approving review and two green checks**
+before a pull request can merge. If `git push origin main` fails for you, nothing is broken — that
+is the rule doing its job. Push your branch instead.
+
+The two checks run automatically on every pull request:
+
+| Check | Catches |
+|---|---|
+| `contract + lint` | a fixture or rule pack that no longer matches the frozen shape, and lint errors |
+| `metrology core` | a change that breaks the measurement — scale, guard bands, false violations |
+
+They take about a minute. **Read the red cross before asking anyone** — it usually names the exact
+field that is wrong.
 
 ### The loop
 
