@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the template. It carries key NAMES only, never values, and without it a
+# new collaborator clones the repo with no idea which variables exist.
+!.env.example
 
 # vercel
 .vercel
