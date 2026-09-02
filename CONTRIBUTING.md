@@ -8,7 +8,7 @@ one hard feature freeze on **6 September, 21:00**. This file is the working agre
 ## 1. First twenty minutes
 
 ```bash
-git clone https://github.com/itej13/sih26034.git
+git clone https://github.com/itej13/sih26034.git   # public repo, no access needed to read
 cd sih26034
 npm install
 npm run check          # contract + lint. Must be green before you write anything.
@@ -193,6 +193,11 @@ the backup video within five seconds if the live demo fails. Practise that once 
 **Nobody merges to `main` except Tejas.** Not because anyone's code is suspect — because one
 person has to hold the whole system in their head, and the frozen contract lives on `main`. You
 work on a branch, open a pull request, and it gets reviewed and merged. That is the only path in.
+
+This is enforced by GitHub, not by good manners: `main` rejects direct pushes, rejects
+force-pushes, cannot be deleted, and requires an approving review before a pull request can merge.
+If `git push origin main` fails for you, nothing is broken — that is the rule doing its job. Push
+your branch instead.
 
 ### The loop
 
