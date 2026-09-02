@@ -1,0 +1,34 @@
+name: check
+
+# Runs on every pull request, so a contributor who never opens a terminal still gets told
+# whether their change is valid. That matters most for the rule packs: Advik edits JSON in
+# the GitHub web editor, and this is what tells him he got the shape right.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contract:
+    name: contract + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:contract
+      - run: npm run lint
+
+  metrology:
+    name: metrology core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: python scripts/check_measure.py

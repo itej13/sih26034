@@ -64,10 +64,11 @@ and if you are ever blocked waiting on a teammate, you are working on the wrong 
 | **Tejas** | Stages 2–5: calibration, the model call, glyph measurement, the rule engine | — |
 | **Dhruv** | Stage 6: schema, auth, storage, evidence chain, search, reports | the vision pipeline, the rule engine, any UI |
 | **Shaurya** | Stage 1 and everything the judges look at: capture, result screen, dashboard | the vision pipeline, the schema, the rule engine |
+| **Advik** | `packs/*.json` — the legal framework as data | everything else in the repo |
 
-### The thing that unblocks both of you today
+### The thing that unblocks the two developers today
 
-**Neither of you is waiting on the vision pipeline.** It does not exist yet and it does not need
+**Neither Dhruv nor Shaurya is waiting on the vision pipeline.** It does not exist yet and it does not need
 to. `fixtures/scan.sample.json` is exactly what will arrive at your doorstep on Day 3, field for
 field.
 
@@ -119,6 +120,29 @@ If you find yourself editing the schema or `api/measure.py`, stop and say so at 
 Everyone forgets the third one, and it is the one that makes this project different from every
 other entry — it is the system refusing to accuse someone on a marginal measurement. It needs to
 read as *deliberate*, not as an error state.
+
+---
+
+### Advik — the rule packs
+
+You write the law into the repo. The evaluator contains **no rules at all** — it contains eight
+predicates, and it loads your files. That is why a rules change is an edit to a JSON file rather
+than an app release, and it is why this folder is on the critical path: Tejas cannot test the rule
+engine on Day 3 until it has rules to run.
+
+You need nothing installed. No Node, no Python, no terminal. Everything you do is editing JSON in
+the GitHub web editor.
+
+Read `packs/README.md` first — it lists the eight predicates and what each field means.
+
+**Two things that will get a rule rejected:**
+
+1. **`rule_text` must be quoted verbatim from the Gazette.** Not paraphrased, not tidied up, not
+   summarised. That string is printed on the compliance report and read aloud to the panel, and a
+   Consumer Affairs officer will know. Copy and paste it.
+2. **`predicate` must be one of the eight.** They are a closed list because a rule pack is *data*,
+   and data must not be able to execute. If a rule needs something none of the eight express, say
+   so at standup — that is a change to Tejas's evaluator, not something you can add here alone.
 
 ---
 
@@ -188,6 +212,32 @@ broken.
 You are also on the keyboard during the presentation for everyone else's slides, and you cut to
 the backup video within five seconds if the live demo fails. Practise that once during rehearsal.
 
+### Advik
+
+**Day 1 · eight rules — this one blocks Tejas.** `packs/lmpc-2026-07-01.json` ships with five as a
+worked example. Add 6(1)(c) net quantity in SI units, 6(1)(e) the MRP wording, and 9(1)(b)
+contrast, each with its verbatim rule text, its threshold and a plain-English failure message.
+> **Done when** the `contract + lint` check on your pull request is green and Tejas can load the
+> pack without asking you a question.
+
+**Day 3 · the 2021 pack.** Copy the file to `packs/lmpc-2021-01-01.json`, set `effective_from` to
+`2021-01-01`, and remove the rules that did not exist yet — unit sale price only became mandatory
+on 2022-10-01. This is what makes the live version-swap possible on stage: the same photograph,
+judged twice, giving different answers because the law changed.
+> **Done when** both packs load and genuinely differ.
+
+**Day 3 · the check-catalogue slide.** Every rule the system covers, with the six that need
+millimetres marked and the eight that actually work highlighted. This is the fastest proof to a
+panel that we read the rules rather than the problem statement.
+> **Done when** every row on it maps to a real rule id in a pack.
+
+**Days 2 and 4 · the deck.** Not in this repo — it lives in the shared drive. Build Advika's story
+spine into the college template, using real screenshots from Shaurya's result screen rather than
+mockups. Deck v0.5 by Day 2, v1 complete by Day 4.
+> **Done when** no slide contains a mockup, and no slide shows something we did not build.
+
+On stage you take minutes 1:15 to 2:30 — what the law actually demands, and the check catalogue.
+
 ## 5. Workflow
 
 **Nobody merges to `main` except Tejas.** Not because anyone's code is suspect — because one
@@ -230,6 +280,22 @@ about is a PR nobody reviews.
 - **Flag anything you are unsure about** in the PR description. "I put the hash in the evidence
   table rather than on the scan row — say if that is wrong" gets you an answer in a minute.
 
+### If you never open a terminal — the browser path
+
+Advik, this is you. You do not need Node, Python, git, or a clone.
+
+1. Open the file on GitHub, for example `packs/lmpc-2026-07-01.json`, and press the pencil icon.
+2. Make your edit.
+3. At the bottom choose **"Create a new branch for this commit and start a pull request"**. Name
+   the branch `advik/something-short`.
+4. Press *Propose changes*, then *Create pull request*.
+
+A check called **contract + lint** runs on your pull request within about a minute and tells you
+whether the pack is valid — right predicate names, no duplicate rule ids, rule text actually
+present. A red cross means fix it and commit again to the same branch; the check reruns. You do
+not need anyone to tell you whether the JSON is right, and Tejas does not have to be the one who
+catches a typo.
+
 ### After review
 
 Tejas either merges it or leaves comments. If there are comments, push more commits to the same
@@ -243,13 +309,20 @@ git checkout dhruv/evidence-chain
 git merge main            # resolve, commit, push. Do not rebase a pushed branch.
 ```
 
-### The three files that need Tejas before you touch them at all
+### The frozen contract
 
-`lib/types.ts` · `fixtures/*` · `packs/*`
+`lib/types.ts` · `fixtures/*` · the **shape** of `packs/*`
 
-These are the frozen contract. A change there breaks two other people at once, so raise it at
-standup **before** writing the code, not in a PR afterwards. Everything else in your own lane, you
-write and open a PR for as normal.
+A change to any of these breaks two other people at once, so raise it at standup **before**
+writing the code, not in a pull request afterwards.
+
+One distinction that matters, because it is the difference between Advik working freely and Advik
+blocked on someone else: **adding or editing rules inside a pack is not a contract change.** New
+rule objects, new thresholds, corrected rule text, a whole new pack file — that is Advik's normal
+work and needs nobody's permission. What needs Tejas is changing the *shape*: a new predicate name,
+a new field on a rule, or renaming an existing one. Content is free; format is frozen.
+
+Everything else in your own lane, you write and open a pull request for as normal.
 
 ### Building on work that is not merged yet
 
