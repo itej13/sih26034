@@ -190,34 +190,72 @@ the backup video within five seconds if the live demo fails. Practise that once 
 
 ## 5. Workflow
 
-**Branch per task**, prefixed with your name: `dhruv/evidence-chain`, `shaurya/uncertainty-bar`.
-Never commit to `main` directly.
+**Nobody merges to `main` except Tejas.** Not because anyone's code is suspect — because one
+person has to hold the whole system in their head, and the frozen contract lives on `main`. You
+work on a branch, open a pull request, and it gets reviewed and merged. That is the only path in.
+
+### The loop
+
+```bash
+git checkout main && git pull                 # always start fresh
+git checkout -b dhruv/evidence-chain          # or shaurya/uncertainty-bar
+
+# ... work ...
+
+npm run check                                 # must be green. Do not open a PR otherwise.
+git commit -am "Evidence rows chain to the previous hash"
+git push -u origin dhruv/evidence-chain
+gh pr create --fill                           # or open it in the browser
+```
+
+Then say so at standup, or in the group. **Do not sit silently waiting** — a PR nobody knows
+about is a PR nobody reviews.
+
+### What makes a PR easy to merge
+
+- **One task per PR.** A branch that does the schema *and* the report route takes three times as
+  long to review and gets merged later than two separate ones would have.
+- **Checks green before you open it.** `npm run check` locally. A red PR is a PR that gets read
+  last.
+- **Say what changed and why**, not what file you touched. "Evidence rows chain to the previous
+  hash so a back-dated record breaks verification" beats "update schema".
+- **Small and often beats big and late.** Open a PR the moment a slice works, even if the feature
+  is not finished. Three 100-line PRs merge faster than one 300-line PR, and they unblock the
+  person building on top of you sooner.
+- **Flag anything you are unsure about** in the PR description. "I put the hash in the evidence
+  table rather than on the scan row — say if that is wrong" gets you an answer in a minute.
+
+### After review
+
+Tejas either merges it or leaves comments. If there are comments, push more commits to the same
+branch — do not open a new PR. The branch updates automatically.
+
+If `main` has moved on and your branch conflicts:
 
 ```bash
 git checkout main && git pull
-git checkout -b dhruv/evidence-chain      # or shaurya/uncertainty-bar
-# ... work ...
-npm run check                     # must be green
-git commit -am "Evidence rows chain to the previous hash"
-git push -u origin dhruv/evidence-chain
-gh pr create --fill               # or open it in the browser
+git checkout dhruv/evidence-chain
+git merge main            # resolve, commit, push. Do not rebase a pushed branch.
 ```
 
-**Merging.**
+### The three files that need Tejas before you touch them at all
 
-- Inside your own lane, checks green → **merge it yourself**. Do not wait for a review; seven
-  days is too short for review ceremony.
-- Touching `lib/types.ts`, `fixtures/*`, or `packs/*` → **tag Tejas and wait.** Those are the
-  shared contract and a silent change there breaks two other people.
+`lib/types.ts` · `fixtures/*` · `packs/*`
 
-**Push every day**, even unfinished. Work on one laptop does not exist, and laptops die on the 7th.
+These are the frozen contract. A change there breaks two other people at once, so raise it at
+standup **before** writing the code, not in a PR afterwards. Everything else in your own lane, you
+write and open a PR for as normal.
 
-**Standup 21:00, fifteen minutes.** What landed, what is blocked, what changes tomorrow.
+### Building on work that is not merged yet
 
-**Commit messages:** say what changed and why, not what file you touched. `"Evidence rows chain
-to the previous hash so a back-dated record breaks verification"` beats `"update schema"`.
+Sometimes you need something still sitting in review. Branch off that branch rather than off
+`main`, and say so in the PR description — "depends on `#4`". Tejas merges them in order. Do not
+copy the other person's code into your branch; it conflicts on merge and someone loses work.
 
----
+### Daily
+
+- **Push every day**, even unfinished. Work on one laptop does not exist, and laptops die on the 7th.
+- **Standup 21:00, fifteen minutes.** What landed, what is blocked, what changes tomorrow.
 
 ## 6. Secrets
 
@@ -255,12 +293,15 @@ need it on the client, you need a server route instead.
 
 ## 8. Do not
 
+- **Push to `main`, or merge your own pull request.** Every change goes through review. If you
+  find yourself with commit access to `main` and a deadline, that is exactly when the rule matters.
 - Hard-code a result for a specific packet. A judge will hand us an unfamiliar one, and that is
   the moment we lose.
 - Add a PDF generation library. Print CSS already works.
 - Add a camera or webcam library. `<input type="file" capture="environment">` is the capture layer,
   it is one line, and it works on every phone in the room.
-- Rename anything in the frozen contract without all three of us in the same conversation.
+- Rename anything in the frozen contract without raising it at standup first.
+- Force-push a branch that has an open pull request. It throws away the review comments.
 - Add a feature after **6 September, 21:00**. The team that ships something new on the last night
   is the team whose demo crashes.
 
