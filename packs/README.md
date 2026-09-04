@@ -15,7 +15,7 @@ Copy an existing entry and fill in the fields. Nothing else in the repo needs to
 | `rule_ref` | The rule number as an officer would cite it — `7(3)`, `6(1)(c)` |
 | `rule_text` | **Quoted verbatim from the Gazette. Never paraphrased.** This string is printed on the report and read by the panel. |
 | `applies_to` | A field key: `mrp`, `net_qty`, `mfg_date`, `manufacturer`, `consumer_care`, `generic_name` |
-| `predicate` | One of the eight below. Nothing else is valid. |
+| `predicate` | One of the nine below. Nothing else is valid. |
 | `message` | Plain English, what an officer would write on a notice |
 
 ## The predicate vocabulary
