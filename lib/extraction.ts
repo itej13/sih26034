@@ -9,7 +9,8 @@ export interface ExtractionProvider {
 /** Explicit development adapter. Replace this provider only when a VLM is configured. */
 export class FixtureExtractionProvider implements ExtractionProvider {
   readonly mode = "fixture" as const;
-  async extract(_image: File): Promise<ExtractResponse> {
+  // No parameter: the fixture ignores the photograph until a real VLM provider is wired.
+  async extract(): Promise<ExtractResponse> {
     return { fields: sample.fields, pdp: sample.pdp } as unknown as ExtractResponse;
   }
 }
