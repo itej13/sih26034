@@ -8,8 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "check:contract": "node scripts/check-contract.mjs",
+    "check:extraction": "node scripts/check-extraction.mjs",
+    "check:evaluator": "node scripts/check-evaluator.mjs",
     "check:measure": "python3 scripts/check_measure.py",
-    "check": "npm run check:contract && npm run lint"
+    "check": "npm run check:contract && npm run check:extraction && npm run check:evaluator && npm run lint"
   },
   "dependencies": {
     "next": "16.3.4",

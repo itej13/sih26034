@@ -22,6 +22,8 @@ THE ASSUMPTION THAT CAN SILENTLY BREAK EVERYTHING
 """
 
 import json
+from email.parser import BytesParser
+from email.policy import default
 from http.server import BaseHTTPRequestHandler
 
 import cv2
@@ -33,6 +35,10 @@ MARKER_MM = 40.0
 # Rectified resolution for the marker. Sets mm_per_px: 400 px / 40 mm = 0.1 mm per pixel,
 # so a 1 mm numeral is 10 px tall. Raising this does not create detail the source lacks.
 PX_PER_MARKER = 400
+# Calibrated scale uncertainty carried into the measurement budget. This is the card/corner
+# uncertainty, not a frontend estimate or a legal threshold.
+U_MM_PER_PX = 0.0006
+MAX_SQUARENESS_RESIDUAL = 0.05
 
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 
@@ -277,3 +283,62 @@ def verdict(value_mm, expanded_uncertainty_mm, minimum_mm):
     if value_mm + expanded_uncertainty_mm < minimum_mm:
         return "VIOLATION"
     return "INDETERMINATE"
+
+
+def measure_image_bytes(image_bytes, numeral_poly, field="mrp"):
+    """Run the complete image -> calibration -> glyph measurement boundary."""
+    image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("image could not be decoded")
+    calibrated = rectify(image)
+    calibration = {
+        "mode": "aruco_card",
+        "marker_mm": MARKER_MM,
+        "mm_per_px": calibrated["mm_per_px"],
+        "uncertainty_mm_per_px": U_MM_PER_PX,
+        "squareness_residual": calibrated["squareness"],
+    }
+    if calibrated["squareness"] > MAX_SQUARENESS_RESIDUAL:
+        return {"calibration": calibration, "measurements": [], "measurement_valid": False,
+                "error": "calibration geometry is unreliable"}
+    measured = measure_numeral(calibrated["image"], numeral_poly, calibrated["mm_per_px"], U_MM_PER_PX, calibrated["squareness"])
+    measurements = [{"field": field, "metric": "numeral_height_mm", "value": measured["height_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2}]
+    if measured["width_mm"] is not None:
+        measurements.append({"field": field, "metric": "numeral_width_mm", "value": measured["width_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2})
+    return {"calibration": calibration, "measurements": measurements, "measurement_valid": True}
+
+
+def _multipart_fields(body, content_type):
+    header = (f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n").encode() + body
+    message = BytesParser(policy=default).parsebytes(header)
+    fields = {}
+    for part in message.iter_parts():
+        disposition = part.get("Content-Disposition", "")
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        fields[name] = part.get_payload(decode=True) if "filename" in disposition else part.get_content()
+    return fields
+
+
+class handler(BaseHTTPRequestHandler):
+    """Vercel Python entrypoint for POST /api/measure."""
+
+    def do_POST(self):  # noqa: N802 - required by BaseHTTPRequestHandler
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            fields = _multipart_fields(self.rfile.read(length), self.headers.get("Content-Type", ""))
+            image = fields.get("image")
+            numeral = fields.get("numeral_poly")
+            if not isinstance(image, bytes) or numeral is None:
+                raise ValueError("image and numeral_poly are required")
+            payload = measure_image_bytes(image, json.loads(numeral), str(fields.get("field", "mrp")))
+            status = 200 if payload.get("measurement_valid", True) else 422
+        except (ValueError, json.JSONDecodeError, NoMarker) as error:
+            payload, status = {"error": str(error)}, 422
+        encoded = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
