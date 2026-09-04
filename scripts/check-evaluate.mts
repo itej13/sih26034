@@ -122,6 +122,37 @@ const mrpHeight = (s: EvaluableScan) =>
     "print beside the declaration inside the required space is a violation");
 }
 
+{
+  // A rule the pipeline structurally cannot judge is reported, not folded into the verdict.
+  // If this regresses, every scan goes INDETERMINATE forever the moment Rule 9(1)(b) enters
+  // a pack — which would read on stage as caution and actually be a bug.
+  const withUnassessable: RulePack = {
+    ...pack,
+    rules: [
+      ...pack.rules,
+      {
+        id: "x-contrast",
+        rule_ref: "9(1)(b)",
+        rule_text:
+          "numerals of the retail sale price and net quantity declaration shall be printed, painted or inscribed on the package in a colour that contrasts conspicuously with the background of the label;",
+        applies_to: "mrp",
+        predicate: "contrast_min",
+        message: "The numerals do not contrast conspicuously with the background.",
+      },
+    ],
+  };
+  const out = evaluate(structuredClone(compliant), withUnassessable);
+  assert.equal(out.not_assessed.length, 1, "the unjudgeable rule is reported");
+  assert.equal(out.not_assessed[0].rule_ref, "9(1)(b)");
+  assert.ok(out.not_assessed[0].reason.length > 20, "and it says why");
+  assert.ok(
+    out.findings.every((f) => f.rule_ref !== "9(1)(b)"),
+    "it produces no finding, because no finding was reached",
+  );
+  assert.equal(out.overall, "COMPLIANT",
+    "a check that never ran must not hold the whole scan open");
+}
+
 // ---------------------------------------------------------------------------
 // Rollup
 // ---------------------------------------------------------------------------

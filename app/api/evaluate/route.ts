@@ -52,11 +52,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const { findings, overall } = evaluate(body.scan as EvaluableScan, pack);
+  const { findings, overall, not_assessed } = evaluate(body.scan as EvaluableScan, pack);
 
   return NextResponse.json({
     findings,
     overall,
+    // Rules the pipeline cannot judge at all, with the reason. Reported rather than folded
+    // into the verdict: a check we never ran is not the same as one we ran and could not
+    // settle, and a report that conflates them overstates what was inspected.
+    not_assessed,
     // Echoed so a stored scan records which law it was judged under, not merely which law
     // was current when someone later opens the report.
     rule_pack: pack.pack,

@@ -59,12 +59,48 @@ const CONFIDENCE_FLOOR = 0.7;
 const GRAMS_PER: Record<string, number> = { mg: 0.001, g: 1, kg: 1000 };
 const MILLILITRES_PER: Record<string, number> = { ml: 1, l: 1000, cl: 10 };
 
+/** A rule this pipeline structurally cannot judge yet — reported, never silently dropped. */
+export interface NotAssessed {
+  rule_ref: string;
+  rule_id: string;
+  reason: string;
+}
+
+/**
+ * Predicates the pipeline has no input for. These produce no finding at all rather than a
+ * permanent INDETERMINATE, and the difference matters: an INDETERMINATE is a verdict held
+ * open pending a better photograph, and it drags the whole scan open with it. A rule we
+ * cannot assess at all would do that to every scan forever, which would make the rollup
+ * meaningless and every demo INDETERMINATE.
+ *
+ * So they are reported separately. "Nine checks run, two not assessed, here is why" is both
+ * honest and a stronger claim than a verdict that quietly never resolves. Delete an entry
+ * here the day its measurement lands.
+ */
+const UNASSESSABLE: Record<string, string> = {
+  contrast_min:
+    "No colour or contrast measurement is produced by the pipeline, so Rule 9(1)(b) cannot be judged from this scan.",
+  consistent_with:
+    "No sticker or overlaid-declaration detection exists yet, so this rule cannot be judged from this scan.",
+};
+
 export function evaluate(
   scan: EvaluableScan,
   pack: RulePack,
-): { findings: Finding[]; overall: Verdict } {
-  const findings = pack.rules.map((rule) => applyRule(scan, rule, pack.pack));
-  return { findings, overall: rollup(findings) };
+): { findings: Finding[]; overall: Verdict; not_assessed: NotAssessed[] } {
+  const findings: Finding[] = [];
+  const not_assessed: NotAssessed[] = [];
+
+  for (const rule of pack.rules) {
+    const reason = UNASSESSABLE[rule.predicate];
+    if (reason) {
+      not_assessed.push({ rule_ref: rule.rule_ref, rule_id: rule.id, reason });
+      continue;
+    }
+    findings.push(applyRule(scan, rule, pack.pack));
+  }
+
+  return { findings, overall: rollup(findings), not_assessed };
 }
 
 /** Worst-wins. Any violation carries the scan; otherwise any indeterminate holds it open. */
@@ -133,19 +169,6 @@ function decide(
       return matches(rule, field);
     case "in_set":
       return inSet(rule, field);
-    case "contrast_min":
-      // The Label Object Model carries no colour or contrast measurement, so stage 5 cannot
-      // decide Rule 9(1)(b) today. Saying so is the correct answer; guessing is not.
-      return undecided(
-        `contrast ratio ≥ ${rule.threshold ?? "?"}`,
-        "Contrast is not measured by the current pipeline, so this rule cannot be decided.",
-      );
-    case "consistent_with":
-      // Same gap: nothing in the model records a sticker or a second overlaid declaration.
-      return undecided(
-        "declaration not altered by a sticker",
-        "Sticker detection is not implemented, so this rule cannot be decided.",
-      );
     default:
       return undecided("a known predicate", `Unknown predicate "${rule.predicate}".`);
   }

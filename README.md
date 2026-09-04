@@ -71,9 +71,10 @@ bug. Raise `PX_PER_MARKER` only if the source photographs carry the detail to ju
 ## Day 3 is done when
 
 - [x] `lib/evaluate.ts` — the rule engine: a pack of predicates over the Label Object Model
-- [x] All nine predicates in the frozen vocabulary dispatch, and the two that the model cannot
-      yet answer (`contrast_min`, `consistent_with`) return `INDETERMINATE` with a reason
-      rather than a guess
+- [x] All nine predicates in the frozen vocabulary dispatch. The two the pipeline has no input
+      for (`contrast_min`, `consistent_with`) are reported in `not_assessed` with a reason
+      instead of producing a finding — a check that never ran must not hold a scan open, or
+      every verdict would be `INDETERMINATE` forever
 - [x] `POST /api/evaluate` — Label Object Model + pack id → findings and a worst-wins verdict
 - [x] `npm run check:evaluate` — agrees with both fixtures, and holds the guard bands
 - [ ] A second pack, so the live 2026 → 2021 swap has something to swap to (Advik)
