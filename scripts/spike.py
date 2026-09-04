@@ -24,10 +24,6 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from api.measure import NoMarker, _crop, _deskew, _ink_mask, measure_numeral, rectify  # noqa: E402
 
-# Relative uncertainty on mm_per_px. Placeholder until the caliper sheet gives us a real
-# figure: photograph one packet ten times, measure the same numeral, and take the spread.
-SCALE_RELATIVE_U = 0.015
-
 
 def main():
     p = argparse.ArgumentParser(description="Measure a numeral on a packaged commodity.")
@@ -49,7 +45,7 @@ def main():
     out = args.image.with_suffix(".rectified.png")
     cv2.imwrite(str(out), r["image"])
 
-    print(f"scale        {r['mm_per_px']:.4f} mm/px  (±{SCALE_RELATIVE_U:.1%})")
+    print(f"scale        {r['mm_per_px']:.4f} mm/px  (±{r['uncertainty_mm_per_px']:.6f} mm/px)")
     print(f"squareness   {r['squareness']:.4f}")
     if r["squareness"] > 0.05:
         print("             ^ the card is not flat against the panel. Reshoot before")
@@ -65,7 +61,7 @@ def main():
 
     try:
         m = measure_numeral(
-            r["image"], poly, r["mm_per_px"], r["mm_per_px"] * SCALE_RELATIVE_U, r["squareness"]
+            r["image"], poly, r["mm_per_px"], r["uncertainty_mm_per_px"], r["squareness"]
         )
     except ValueError as e:
         sys.exit(f"could not measure: {e}")
