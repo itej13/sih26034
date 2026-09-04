@@ -57,6 +57,40 @@
       "applies_to": "consumer_care",
       "predicate": "present",
       "message": "Consumer care contact details are missing."
+    },
+    {
+      "id": "r6-1-c-net-qty-unit",
+      "rule_ref": "6(1)(c)",
+      "rule_text": "The net quantity, in terms of the standard unit of weight or measure, of the commodity contained in the package or where the commodity is packed or sold by number, the number of the commodity contained in the package shall be mentioned.",
+      "applies_to": "net_qty",
+      "predicate": "in_set",
+      "allowed": ["mg", "g", "kg", "ml", "cl", "l", "cm", "m", "N"],
+      "message": "Net quantity is not declared in a standard unit of weight, measure or number."
+    },
+    {
+      "id": "r6-1-e-mrp-form",
+      "rule_ref": "6(1)(e)",
+      "rule_text": "the retail sale price of the package shall clearly indicate that it is the maximum retail price inclusive of all taxes in Indian currency:",
+      "applies_to": "mrp",
+      "predicate": "matches",
+      "pattern": "(?=.*(?:mrp|maximum retail price|max\\.? retail price))(?=.*incl)(?=.*tax)",
+      "message": "The price declaration does not state that it is the maximum retail price inclusive of all taxes."
+    },
+    {
+      "id": "r6-3-sticker-alteration",
+      "rule_ref": "6(3)",
+      "rule_text": "It shall not be permissible to affix individual stickers on the package for altering or making declaration required under these rules: Provided that for reducing the Maximum Retail Price (MRP), a sticker with the revised lower MRP (inclusive of all taxes) may be affixed and the same shall not cover the MRP declaration made by the manufacturer or the packer, as the case may be, on the label of the package.",
+      "applies_to": "mrp",
+      "predicate": "consistent_with",
+      "message": "A sticker appears to alter a declaration required by these Rules."
+    },
+    {
+      "id": "r9-1-b-contrast",
+      "rule_ref": "9(1)(b)",
+      "rule_text": "numerals of the retail sale price and net quantity declaration shall be printed, painted or inscribed on the package in a colour that contrasts conspicuously with the background of the label;",
+      "applies_to": "mrp",
+      "predicate": "contrast_min",
+      "message": "The price and quantity numerals do not contrast conspicuously with the background."
     }
   ]
 }
