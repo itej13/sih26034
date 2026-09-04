@@ -68,6 +68,34 @@ Known resolution ceiling: `PX_PER_MARKER` fixes the rectified grid at 0.1 mm per
 uncertainty roughly triples and the answer becomes `INDETERMINATE` — correct behaviour, not a
 bug. Raise `PX_PER_MARKER` only if the source photographs carry the detail to justify it.
 
+## Day 3 is done when
+
+- [x] `lib/evaluate.ts` — the rule engine: a pack of predicates over the Label Object Model
+- [x] All nine predicates in the frozen vocabulary dispatch, and the two that the model cannot
+      yet answer (`contrast_min`, `consistent_with`) return `INDETERMINATE` with a reason
+      rather than a guess
+- [x] `POST /api/evaluate` — Label Object Model + pack id → findings and a worst-wins verdict
+- [x] `npm run check:evaluate` — agrees with both fixtures, and holds the guard bands
+- [ ] A second pack, so the live 2026 → 2021 swap has something to swap to (Advik)
+
+```bash
+curl -X POST localhost:3000/api/evaluate \
+  -H 'content-type: application/json' \
+  -d "{\"scan\": $(cat fixtures/scan.sample.json), \"pack_id\": \"lmpc@2026-07-01\"}"
+```
+
+Omit `pack_id` and the newest pack is used. The route is deterministic and offline — no model,
+no network, no database — which is what makes a finding defensible when the notice it produced
+gets challenged.
+
+> **Known divergence.** The engine returns `COMPLIANT` for Rule 8(1) on
+> `fixtures/scan.sample.json` where the fixture records `VIOLATION`. The fixture's own geometry
+> does not support a violation: the "20% EXTRA" flash sits diagonally away from the
+> net-quantity numeral, clear of the required rectangle on both axes. The fixture's finding was
+> written by hand rather than computed. Fixtures are the frozen contract, so this is raised
+> for the three of us rather than edited — but it needs deciding before the demo, because the
+> seeded scan and the live scan will disagree on screen.
+
 ## Contract-first
 
 Three developers, seven days, one product. The way that fails is everyone waiting on the hard

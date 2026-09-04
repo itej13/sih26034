@@ -20,6 +20,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:contract
+      # Added as a step rather than a job on purpose: the ruleset requires the checks named
+      # "contract + lint" and "metrology core", so a new job would need registering before
+      # anything could merge again. Renaming this job would break the same rule.
+      - run: npm run check:evaluate
       - run: npm run lint
 
   metrology:

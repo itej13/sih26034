@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "check:contract": "node scripts/check-contract.mjs",
+    "check:evaluate": "node scripts/check-evaluate.mts",
     "check:measure": "python3 scripts/check_measure.py",
-    "check": "npm run check:contract && npm run lint"
+    "check": "npm run check:contract && npm run check:evaluate && npm run lint"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
