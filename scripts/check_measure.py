@@ -39,6 +39,8 @@ from api.measure import (  # noqa: E402
     _half_max_extent,
     _ink_mask,
     measure_numeral,
+    measure_image_bytes,
+    SCALE_RELATIVE_U,
     rectify,
     squareness_residual,
     to_rectified,
@@ -205,6 +207,19 @@ def main():
     assert verdict(1.03, 0.14, 1.0) == "INDETERMINATE"
     # A wide enough uncertainty must never produce a verdict, however far the point value sits.
     assert verdict(0.50, 0.60, 1.0) == "INDETERMINATE"
+
+    # The HTTP entrypoint must use the same relative scale uncertainty as the core. This
+    # catches accidentally lifting the fixture's absolute 0.0006 mm/px onto the 0.1 mm grid.
+    master, poly, _ = synthetic_pack(2.0)
+    photo, transform = photograph(master, 0.0, camera_px_per_mm=10.0)
+    calibrated = rectify(photo)
+    poly_photo = cv2.perspectiveTransform(np.asarray(poly, np.float32).reshape(-1, 1, 2), transform).reshape(-1, 2)
+    poly_rect = to_rectified(calibrated["H"], poly_photo)
+    ok, encoded = cv2.imencode(".png", photo)
+    assert ok, "synthetic photo must encode"
+    entrypoint = measure_image_bytes(encoded.tobytes(), poly_rect.tolist(), "mrp")
+    assert entrypoint["measurement_valid"] is True
+    assert abs(entrypoint["calibration"]["uncertainty_mm_per_px"] - entrypoint["calibration"]["mm_per_px"] * SCALE_RELATIVE_U) < 1e-12
 
     # A clearly undersized numeral must be called, not hedged.
     master, poly, true_mm = synthetic_pack(0.6)

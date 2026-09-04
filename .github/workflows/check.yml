@@ -19,8 +19,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run check:contract
-      - run: npm run lint
+      - run: npm run check
+      - run: npm run build
 
   metrology:
     name: metrology core

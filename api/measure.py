@@ -37,7 +37,9 @@ MARKER_MM = 40.0
 PX_PER_MARKER = 400
 # Calibrated scale uncertainty carried into the measurement budget. This is the card/corner
 # uncertainty, not a frontend estimate or a legal threshold.
-U_MM_PER_PX = 0.0006
+# Relative scale uncertainty for the rectified grid. Keep this relative: mm_per_px changes
+# with the chosen rectified grid, while the calibration-card corner uncertainty does not.
+SCALE_RELATIVE_U = 0.015
 MAX_SQUARENESS_RESIDUAL = 0.05
 
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -295,13 +297,14 @@ def measure_image_bytes(image_bytes, numeral_poly, field="mrp"):
         "mode": "aruco_card",
         "marker_mm": MARKER_MM,
         "mm_per_px": calibrated["mm_per_px"],
-        "uncertainty_mm_per_px": U_MM_PER_PX,
+        "uncertainty_mm_per_px": calibrated["mm_per_px"] * SCALE_RELATIVE_U,
         "squareness_residual": calibrated["squareness"],
     }
     if calibrated["squareness"] > MAX_SQUARENESS_RESIDUAL:
         return {"calibration": calibration, "measurements": [], "measurement_valid": False,
                 "error": "calibration geometry is unreliable"}
-    measured = measure_numeral(calibrated["image"], numeral_poly, calibrated["mm_per_px"], U_MM_PER_PX, calibrated["squareness"])
+    u_mm_per_px = calibrated["mm_per_px"] * SCALE_RELATIVE_U
+    measured = measure_numeral(calibrated["image"], numeral_poly, calibrated["mm_per_px"], u_mm_per_px, calibrated["squareness"])
     measurements = [{"field": field, "metric": "numeral_height_mm", "value": measured["height_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2}]
     if measured["width_mm"] is not None:
         measurements.append({"field": field, "metric": "numeral_width_mm", "value": measured["width_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2})

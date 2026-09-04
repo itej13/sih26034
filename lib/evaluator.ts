@@ -1,4 +1,5 @@
 import pack2026 from "@/packs/lmpc-2026-07-01.json";
+import { verdictFor } from "@/lib/types";
 import type { Finding, Scan, Verdict } from "@/lib/types";
 
 type PackRule = {
@@ -12,12 +13,6 @@ type Pack = { pack: string; effective_from: string; rules: PackRule[] };
 const packs: Record<string, Pack> = { "lmpc@2026-07-01": pack2026 as Pack };
 const measured = (scan: Scan, field: string, metric: string) => scan.measurements.find((item) => item.field === field && item.metric === metric);
 
-export function verdictForInterval(value: number, uncertainty: number, threshold: number): Verdict {
-  if (value - uncertainty >= threshold) return "COMPLIANT";
-  if (value + uncertainty < threshold) return "VIOLATION";
-  return "INDETERMINATE";
-}
-
 function finding(rule: PackRule, pack: Pack, verdict: Verdict, measuredText: string, required: string): Finding {
   return { rule_ref: rule.rule_ref, verdict, measured: measuredText, required, rule_pack: pack.pack, rule_text: rule.rule_text, message: verdict === "COMPLIANT" ? null : rule.message };
 }
@@ -30,19 +25,19 @@ function evaluateRule(scan: Scan, rule: PackRule, pack: Pack): Finding {
   if (rule.predicate === "min_mm" && rule.metric && rule.threshold !== undefined) {
     const item = measured(scan, rule.applies_to, rule.metric);
     if (!item) return finding(rule, pack, "INDETERMINATE", "measurement unavailable", `≥ ${rule.threshold.toFixed(2)} mm`);
-    return finding(rule, pack, verdictForInterval(item.value, item.expanded_uncertainty_mm, rule.threshold), `${item.value.toFixed(2)} ± ${item.expanded_uncertainty_mm.toFixed(2)} mm`, `≥ ${rule.threshold.toFixed(2)} mm`);
+    return finding(rule, pack, verdictFor(item.value, item.expanded_uncertainty_mm, rule.threshold), `${item.value.toFixed(2)} ± ${item.expanded_uncertainty_mm.toFixed(2)} mm`, `≥ ${rule.threshold.toFixed(2)} mm`);
   }
   if (rule.predicate === "min_mm_lookup" && rule.metric && rule.table) {
     const item = measured(scan, rule.applies_to, rule.metric); const value = field?.value;
     const quantity = value && typeof value === "object" && "n" in value ? value.n : null;
     const row = quantity === null ? undefined : rule.table.find((entry) => entry.up_to === null || quantity <= entry.up_to);
     if (!item || !row) return finding(rule, pack, "INDETERMINATE", "measurement or pack-size lookup unavailable", "table threshold unavailable");
-    return finding(rule, pack, verdictForInterval(item.value, item.expanded_uncertainty_mm, row.mm), `${item.value.toFixed(2)} ± ${item.expanded_uncertainty_mm.toFixed(2)} mm`, `≥ ${row.mm.toFixed(2)} mm (Table I)`);
+    return finding(rule, pack, verdictFor(item.value, item.expanded_uncertainty_mm, row.mm), `${item.value.toFixed(2)} ± ${item.expanded_uncertainty_mm.toFixed(2)} mm`, `≥ ${row.mm.toFixed(2)} mm (Table I)`);
   }
   if (rule.predicate === "min_ratio" && rule.numerator && rule.denominator && rule.threshold !== undefined) {
     const numerator = scan.measurements.find((item) => item.metric === rule.numerator); const denominator = scan.measurements.find((item) => item.metric === rule.denominator);
     if (!numerator || !denominator || denominator.value <= denominator.expanded_uncertainty_mm) return finding(rule, pack, "INDETERMINATE", "ratio measurement unavailable", `≥ ${rule.threshold.toFixed(4)}`);
-    const low = (numerator.value - numerator.expanded_uncertainty_mm) / (denominator.value + denominator.expanded_uncertainty_mm); const high = (numerator.value + numerator.expanded_uncertainty_mm) / (denominator.value - denominator.expanded_uncertainty_mm); const verdict: Verdict = low >= rule.threshold ? "COMPLIANT" : high < rule.threshold ? "VIOLATION" : "INDETERMINATE";
+    const low = (numerator.value - numerator.expanded_uncertainty_mm) / (denominator.value + denominator.expanded_uncertainty_mm); const high = (numerator.value + numerator.expanded_uncertainty_mm) / (denominator.value - denominator.expanded_uncertainty_mm); const verdict = verdictFor((low + high) / 2, (high - low) / 2, rule.threshold);
     return finding(rule, pack, verdict, `${(numerator.value / denominator.value).toFixed(3)} ratio`, `≥ ${rule.threshold.toFixed(4)}`);
   }
   if (rule.predicate === "clear_space" && field?.poly && rule.horizontal_multiple !== undefined && rule.vertical_multiple !== undefined) {
