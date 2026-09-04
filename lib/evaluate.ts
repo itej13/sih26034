@@ -77,7 +77,7 @@ export interface NotAssessed {
  * honest and a stronger claim than a verdict that quietly never resolves. Delete an entry
  * here the day its measurement lands.
  */
-const UNASSESSABLE: Record<string, string> = {
+export const UNASSESSABLE: Record<string, string> = {
   contrast_min:
     "No colour or contrast measurement is produced by the pipeline, so Rule 9(1)(b) cannot be judged from this scan.",
   consistent_with:

@@ -9,6 +9,7 @@
  */
 import { readFileSync, readdirSync } from "node:fs";
 import assert from "node:assert/strict";
+import { UNASSESSABLE } from "../lib/evaluate.ts";
 
 const FIELD_KEYS = new Set([
   "mrp", "net_qty", "mfg_date", "manufacturer", "consumer_care", "generic_name",
@@ -18,6 +19,34 @@ const PREDICATES = new Set([
   "present", "matches", "in_set", "min_mm", "min_mm_lookup",
   "min_ratio", "clear_space", "contrast_min", "consistent_with",
 ]);
+
+/**
+ * What each predicate needs beyond the common fields, straight from packs/README.md. A
+ * nested array means "at least one of these".
+ *
+ * Enforced only for predicates the evaluator actually implements. A rule whose predicate is
+ * still in UNASSESSABLE has nothing to parameterise yet, and inventing a contrast threshold
+ * to satisfy a checker would be inventing law. The day that predicate lands, deleting its
+ * UNASSESSABLE entry turns this into a hard requirement automatically.
+ */
+const REQUIRED_FIELDS = {
+  present: [],
+  matches: [["pattern", "any_of"]],
+  in_set: ["allowed"],
+  min_mm: ["metric", "threshold"],
+  min_mm_lookup: ["metric", "lookup_on", "table"],
+  min_ratio: ["numerator", "denominator", "threshold"],
+  clear_space: ["vertical_multiple", "horizontal_multiple"],
+  contrast_min: ["threshold"],
+  consistent_with: ["expression"],
+};
+
+// Adding a predicate to one list and not the other is exactly the drift this file exists to
+// catch, so catch it here rather than in a pack review.
+assert.deepEqual(
+  new Set(Object.keys(REQUIRED_FIELDS)), PREDICATES,
+  "REQUIRED_FIELDS and PREDICATES must describe the same vocabulary",
+);
 
 const isPoly = (p) =>
   Array.isArray(p) && p.length >= 3 &&
@@ -94,6 +123,15 @@ for (const name of readdirSync("packs").filter((f) => f.endsWith(".json"))) {
     assert.ok(FIELD_KEYS.has(r.applies_to), at(`rule ${r.id} applies to unknown field`));
     assert.ok(r.rule_text?.length > 20, at(`rule ${r.id} must quote the Gazette verbatim`));
     assert.ok(r.message?.length > 0, at(`rule ${r.id} has no plain-English message`));
+    if (!(r.predicate in UNASSESSABLE)) {
+      for (const need of REQUIRED_FIELDS[r.predicate]) {
+        const options = Array.isArray(need) ? need : [need];
+        assert.ok(
+          options.some((k) => r[k] !== undefined),
+          at(`rule ${r.id} uses "${r.predicate}" but declares no ${options.join(" or ")}`),
+        );
+      }
+    }
   }
   checked++;
 }
