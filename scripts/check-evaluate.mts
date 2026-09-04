@@ -126,10 +126,12 @@ const mrpHeight = (s: EvaluableScan) =>
   // A rule the pipeline structurally cannot judge is reported, not folded into the verdict.
   // If this regresses, every scan goes INDETERMINATE forever the moment Rule 9(1)(b) enters
   // a pack — which would read on stage as caution and actually be a bug.
+  // Built from one known rule rather than the whole pack, so the count below stays true as
+  // Advik adds rules the pipeline cannot yet judge.
   const withUnassessable: RulePack = {
     ...pack,
     rules: [
-      ...pack.rules,
+      ...pack.rules.filter((r) => r.id === "r7-3-letter-height"),
       {
         id: "x-contrast",
         rule_ref: "9(1)(b)",
