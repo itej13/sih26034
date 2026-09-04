@@ -36,7 +36,7 @@ export async function measureNumeral(file: File, numeralPoly: Poly, field = "mrp
 }
 
 export async function evaluateScan(input: Omit<Scan, "findings" | "overall">, rulePack: string): Promise<EvaluateResponse> {
-  return requestJson<EvaluateResponse>("/api/evaluate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scan: input, rule_pack: rulePack }) });
+  return requestJson<EvaluateResponse>("/api/evaluate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scan: input, pack_id: rulePack }) });
 }
 
 /**

@@ -19,6 +19,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Steps, not new jobs, on purpose: the ruleset requires the checks named
+      # "contract + lint" and "metrology core", so a new job would need registering before
+      # anything could merge again. Renaming either job would break the same rule.
+      # "npm run check" chains contract + extraction + evaluate + lint.
       - run: npm run check
       - run: npm run build
 

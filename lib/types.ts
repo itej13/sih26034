@@ -18,6 +18,7 @@ export type FieldKey =
   | "generic_name";
 
 export type Verdict = "COMPLIANT" | "VIOLATION" | "INDETERMINATE";
+export type OverallVerdict = Verdict;
 
 /** Clockwise from top-left, in RECTIFIED image pixels — never raw camera pixels. */
 export type Poly = [number, number][];
@@ -29,6 +30,18 @@ export interface Calibration {
   uncertainty_mm_per_px: number;
   /** Rectified squareness residual — a proxy for the card not lying flat on the panel. */
   squareness_residual: number;
+}
+
+export interface Pdp {
+  poly: Poly;
+  area_cm2: number;
+  confidence: number;
+}
+
+export interface RulePack {
+  pack: string;
+  effective_from: string;
+  source?: string;
 }
 
 export interface LabelField {
@@ -70,7 +83,7 @@ export interface Scan {
   image_sha256: string;
   gps: { lat: number; lon: number } | null;
   calibration: Calibration;
-  pdp: { poly: Poly; area_cm2: number; confidence: number };
+  pdp: Pdp;
   fields: LabelField[];
   /** Every other printed region — needed only for the Rule 8(1) clear-space check. */
   other_print: { poly: Poly; note?: string }[];
@@ -78,7 +91,7 @@ export interface Scan {
   findings: Finding[];
   rule_pack: string;
   /** Worst-wins rollup of `findings`: any violation wins, else any indeterminate. */
-  overall: Verdict;
+  overall: OverallVerdict;
 }
 
 /** Guard band. The reason a marginal measurement never becomes an accusation. */

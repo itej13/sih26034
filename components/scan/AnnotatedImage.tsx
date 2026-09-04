@@ -1,0 +1,8 @@
+import Image from "next/image";
+import type { LabelField, Poly } from "@/lib/types";
+
+const points = (poly: Poly) => poly.map(([x, y]) => `${x},${y}`).join(" ");
+
+export function AnnotatedImage({ fields, imageUrl }: { fields: LabelField[]; imageUrl: string }) {
+  return <figure className="panel overflow-hidden"><div className="relative aspect-[14/15] bg-slate-100"><Image src={imageUrl} alt="Package label used for this inspection" fill unoptimized className="object-contain" /><svg className="absolute inset-0 h-full w-full" viewBox="0 0 560 600" preserveAspectRatio="xMidYMid meet" aria-label="Declaration and measured numeral annotations" role="img">{fields.filter((field) => field.poly.length > 0).map((field) => <g key={field.key}><polygon points={points(field.poly)} fill="rgba(30, 64, 175, 0.12)" stroke="#1d4ed8" strokeWidth="3" /><title>{field.key.replace("_", " ")} declaration</title></g>)}{fields.filter((field) => field.numeral_poly).map((field) => <g key={`${field.key}-numeral`}><polygon points={points(field.numeral_poly!)} fill="rgba(180, 83, 9, 0.18)" stroke="#b45309" strokeWidth="3" /><title>{field.key.replace("_", " ")} exact numeral</title></g>)}</svg><div className="absolute bottom-3 left-3 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded bg-white px-2 py-1 text-blue-800 shadow">Declaration region</span><span className="rounded bg-white px-2 py-1 text-amber-800 shadow">Measured numeral</span></div></div><figcaption className="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">Rectified label image · polygons supplied by the extraction pipeline.</figcaption></figure>;
+}
