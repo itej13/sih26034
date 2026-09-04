@@ -39,6 +39,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local Codex instructions and skills; never include them in product PRs
+/.codex/
+/CODEX.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,19 +1,11 @@
-// Shaurya. Reads from lib/fixtures until Dhruv's search lands on Day 3.
+"use client";
+import Link from "next/link";
+import { useState } from "react";
 import { allScans } from "@/lib/fixtures";
 
 export default function HistoryPage() {
-  return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-bold">History</h1>
-      <ul className="mt-6 space-y-2">
-        {allScans.map((s) => (
-          <li key={s.scan_id} className="rounded border p-3 text-sm">
-            <a href={`/result/${s.scan_id}`}>
-              {s.scan_id} — {s.overall} — {s.captured_at}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
+  const [query, setQuery] = useState("");
+  const [verdict, setVerdict] = useState("ALL");
+  const scans = allScans.filter((scan) => (verdict === "ALL" || scan.overall === verdict) && `${scan.scan_id} ${scan.fields.find((field) => field.key === "manufacturer")?.text ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+  return <main className="page-shell"><header className="flex flex-wrap items-end justify-between gap-5 border-b border-slate-200 pb-6"><div><p className="eyebrow">Inspection register</p><h1 className="mt-2 text-3xl font-semibold text-slate-950 sm:text-4xl">Inspection history</h1><p className="mt-2 text-sm text-slate-600">Search completed scans and reopen their evidence trail.</p></div><Link href="/capture" className="button-primary no-print">New inspection</Link></header><section className="panel mt-7 p-5"><div className="grid gap-4 md:grid-cols-[1fr_220px]"><label className="text-sm font-semibold text-slate-700">Search inspections<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Scan ID or manufacturer" className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none transition focus:border-blue-800 focus:ring-2 focus:ring-blue-100" /></label><label className="text-sm font-semibold text-slate-700">Verdict<select value={verdict} onChange={(event) => setVerdict(event.target.value)} className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none transition focus:border-blue-800 focus:ring-2 focus:ring-blue-100"><option value="ALL">All verdicts</option><option value="COMPLIANT">Compliant</option><option value="VIOLATION">Violation</option><option value="INDETERMINATE">Indeterminate</option></select></label></div></section><section className="panel mt-5 overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><p className="text-sm font-semibold text-slate-900">{scans.length} inspection{scans.length === 1 ? "" : "s"} found</p><p className="text-xs text-slate-500">Fixture development data</p></div><div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500"><tr><th className="px-5 py-3">Inspection</th><th className="px-5 py-3">Captured</th><th className="px-5 py-3">Manufacturer</th><th className="px-5 py-3">Verdict</th></tr></thead><tbody>{scans.map((scan) => <tr key={scan.scan_id} className="border-t border-slate-100 transition-colors hover:bg-blue-50/40"><td className="px-5 py-4 font-semibold text-blue-900"><Link href={`/result/${scan.scan_id}`} className="focus-visible:outline-2 focus-visible:outline-blue-900">{scan.scan_id}</Link></td><td className="px-5 py-4 text-slate-600">{new Date(scan.captured_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}</td><td className="px-5 py-4 text-slate-700">{scan.fields.find((field) => field.key === "manufacturer")?.text ?? "—"}</td><td className="px-5 py-4"><span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700">{scan.overall}</span></td></tr>)}</tbody></table></div>{scans.length === 0 && <div className="p-10 text-center"><p className="font-semibold text-slate-900">No inspections match these filters.</p><p className="mt-1 text-sm text-slate-600">Clear the filters or start a new inspection.</p></div>}</section></main>;
 }
