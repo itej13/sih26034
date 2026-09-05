@@ -12,8 +12,10 @@
     "check:evaluate": "node scripts/check-evaluate.mts",
     "check:measure": ".venv/bin/python scripts/check_measure.py",
     "check:packs": "node scripts/check-packs.mts",
+    "check:repository": "node lib/repository.ts",
+    "check:evidence": "node lib/evidence.ts",
     "serve:measure": ".venv/bin/python scripts/serve_measure.py",
-    "check": "npm run check:contract && npm run check:extraction && npm run check:evaluate && npm run check:packs && npm run lint"
+    "check": "npm run check:contract && npm run check:extraction && npm run check:evaluate && npm run check:packs && npm run check:repository && npm run check:evidence && npm run lint"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
