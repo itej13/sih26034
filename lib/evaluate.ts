@@ -115,16 +115,40 @@ function applyRule(scan: EvaluableScan, rule: Rule, packId: string): Finding {
   const field = scan.fields.find((f) => f.key === rule.applies_to);
 
   const decided = decide(scan, rule, field);
+  const verdict = guard(decided.verdict, field);
 
   return {
     rule_ref: rule.rule_ref,
-    verdict: guard(decided.verdict, field),
+    verdict,
     measured: decided.measured,
     required: decided.required,
     rule_pack: packId,
     rule_text: rule.rule_text,
-    message: decided.verdict === "COMPLIANT" ? null : (decided.note ?? rule.message),
+    message: messageFor(verdict, decided, rule),
   };
+}
+
+/**
+ * The message has to agree with the verdict that was actually reached.
+ *
+ * A rule pack's `message` is written for the offence — "Net quantity numeral is below the
+ * minimum height required for this pack size" — and it used to be attached to anything that
+ * was not COMPLIANT. So a measurement whose interval merely straddled the limit came back
+ * INDETERMINATE and was captioned with a flat accusation, printed on the report an officer
+ * signs. It was also chosen from the pre-guard verdict, so a violation held open for low
+ * extractor confidence kept the accusation too. Both cases said the opposite of the finding
+ * they sat under, which is precisely the thing this engine exists not to do.
+ */
+function messageFor(verdict: Verdict, decided: Decision, rule: Rule): string | null {
+  if (verdict === "COMPLIANT") return null;
+  if (verdict === "VIOLATION") return decided.note ?? rule.message;
+
+  // INDETERMINATE. A note already explains the specific reason where there is one.
+  if (decided.note) return decided.note;
+  if (decided.verdict === "VIOLATION") {
+    return `Measured ${decided.measured} against ${decided.required}, but this declaration was not identified confidently enough to support a finding. Confirm the field to settle it.`;
+  }
+  return `Measured ${decided.measured} against ${decided.required}. The measurement interval straddles the limit, so this rule cannot be settled from this capture.`;
 }
 
 /**
@@ -254,7 +278,7 @@ function minRatio(scan: EvaluableScan, rule: Rule): Decision {
   const required = `width ≥ ${(rule.threshold ?? 0).toFixed(4)} × height`;
   const num = measurementOf(scan, rule.applies_to, rule.numerator);
   const den = measurementOf(scan, rule.applies_to, rule.denominator);
-  if (!num || !den || den.value === 0) {
+  if (!num || !den || num.value <= 0 || den.value <= 0) {
     return undecided(
       required,
       "Both numeral width and height are needed for the ratio, and one is missing.",
@@ -422,7 +446,12 @@ function matches(rule: Rule, field: LabelField | undefined): Decision {
     // Patterns come from rule packs in this repo, not from user input — but a pack is edited
     // by hand in a browser, so a malformed one must fail as an open question rather than a
     // 500 on the route.
-    re = new RegExp(rule.pattern, "iu");
+    //
+    // The `s` flag is load-bearing, not tidiness. Declarations wrap: "MRP ₹45" on one line
+    // and "(incl. of all taxes)" on the next is the ordinary case on Indian packaging. Without
+    // it a `.*` lookahead cannot reach past the newline, and a compliant two-line declaration
+    // was reported as a VIOLATION — the one failure this engine must never produce.
+    re = new RegExp(rule.pattern, "ius");
   } catch {
     return undecided(required, `Rule ${rule.id} carries a pattern that is not valid.`);
   }
@@ -439,13 +468,13 @@ function inSet(rule: Rule, field: LabelField | undefined): Decision {
   const required = `one of: ${allowed.join(", ")}`;
   if (allowed.length === 0) return undecided(required, "The rule declares no allowed set.");
 
+  // Only the structured { n, unit } form carries a unit. A bare string means extraction
+  // never resolved the declaration into a quantity and a unit — which is an open question,
+  // not an offence. Reading that whole string as the unit turned a legal "500 g" into a
+  // VIOLATION the moment the parser had an off day.
   const value = field?.value;
   const unit =
-    value && typeof value === "object" && "unit" in value
-      ? String(value.unit)
-      : typeof value === "string"
-        ? value
-        : null;
+    value && typeof value === "object" && "unit" in value ? String(value.unit) : null;
 
   if (unit === null) {
     return undecided(required, "No unit was extracted from this declaration.");

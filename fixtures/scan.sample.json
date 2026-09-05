@@ -11,7 +11,7 @@
   },
   "calibration": {
     "mode": "aruco_card",
-    "marker_mm": 40.0,
+    "marker_mm": 40,
     "mm_per_px": 0.0412,
     "uncertainty_mm_per_px": 0.0006,
     "squareness_residual": 0.004
@@ -35,14 +35,14 @@
         224
       ]
     ],
-    "area_cm2": 214.0,
+    "area_cm2": 214,
     "confidence": 0.88
   },
   "fields": [
     {
       "key": "mrp",
       "text": "MRP ₹ 45.00 (incl. of all taxes)",
-      "value": 45.0,
+      "value": 45,
       "poly": [
         [
           210,
@@ -237,20 +237,20 @@
     {
       "poly": [
         [
-          402,
-          318
+          340,
+          424
         ],
         [
-          520,
-          318
+          460,
+          424
         ],
         [
-          520,
-          352
+          460,
+          454
         ],
         [
-          402,
-          352
+          340,
+          454
         ]
       ],
       "note": "20% EXTRA flash"
@@ -290,30 +290,57 @@
       "message": "MRP numeral is below the minimum height of 1 mm."
     },
     {
+      "rule_ref": "7(3)",
+      "verdict": "COMPLIANT",
+      "measured": "0.537 ± 0.117",
+      "required": "width ≥ 0.3333 × height",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "Provided that the width of the letter or numeral shall not be less than one third of its height, except in the case of numeral `1' and letters (i), (I) and (l);",
+      "message": null
+    },
+    {
       "rule_ref": "7(2)",
       "verdict": "INDETERMINATE",
       "measured": "1.03 ± 0.14 mm",
       "required": "≥ 1.00 mm (Table I, up to 200 g/ml)",
       "rule_pack": "lmpc@2026-07-01",
-      "rule_text": "The height of any numeral in the declaration required under these rules, on the principal display panel shall not be less than as shown in Table-I, if the net quantity is declared in terms of weight or volume.",
-      "message": "Net quantity numeral height cannot be decided at this uncertainty. Re-scan with the calibration card flat against the panel."
+      "rule_text": "The height of any numeral in the declaration required under these rules, on the principal display panel shall not be less than, (i) as shown in Table-I, if the net quantity is declared in terms of weight or volume.",
+      "message": "Measured 1.03 ± 0.14 mm against ≥ 1.00 mm (Table I, up to 200 g/ml). The measurement interval straddles the limit, so this rule cannot be settled from this capture."
     },
     {
       "rule_ref": "8(1)",
       "verdict": "VIOLATION",
-      "measured": "promotional print 1.8 mm from the declaration",
-      "required": "≥ 2.06 mm clear to left and right (2 × numeral height)",
+      "measured": "printed matter 0.25 mm from the declaration (20% EXTRA flash)",
+      "required": "≥ 1.03 mm above and below, ≥ 2.06 mm left and right",
       "rule_pack": "lmpc@2026-07-01",
-      "rule_text": "Provided that the area surrounding the quantity declaration shall be free from printed information ... to the left and right by a space at least twice the height of numeral in the declaration.",
-      "message": "The \"20% EXTRA\" flash intrudes into the clear space required around the net quantity declaration."
+      "rule_text": "Provided that the area surrounding the quantity declaration shall be free from printed information (a) above and below by a space equal to at least the height of the numeral in the declaration, and (b) to the left and right by a space at least twice the height of numeral in the declaration.",
+      "message": "Printed matter intrudes into the clear space required around the net quantity declaration."
     },
     {
       "rule_ref": "6(2)",
       "verdict": "COMPLIANT",
-      "measured": "name, address, telephone and e-mail all present",
-      "required": "all four sub-fields",
+      "measured": "present",
+      "required": "present on the principal display panel",
       "rule_pack": "lmpc@2026-07-01",
       "rule_text": "Every package shall bear the name, address, telephone number, e mail address, if available, of the person who can be or the office which can be, contacted, in case of consumer complaints.",
+      "message": null
+    },
+    {
+      "rule_ref": "6(1)(c)",
+      "verdict": "COMPLIANT",
+      "measured": "g",
+      "required": "one of: mg, g, kg, ml, cl, l, cm, m, N",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "The net quantity, in terms of the standard unit of weight or measure, of the commodity contained in the package or where the commodity is packed or sold by number, the number of the commodity contained in the package shall be mentioned.",
+      "message": null
+    },
+    {
+      "rule_ref": "6(1)(e)",
+      "verdict": "COMPLIANT",
+      "measured": "MRP ₹ 45.00 (incl. of all taxes)",
+      "required": "matching the prescribed form",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "the retail sale price of the package shall clearly indicate that it is the maximum retail price inclusive of all taxes in Indian currency:",
       "message": null
     }
   ],
