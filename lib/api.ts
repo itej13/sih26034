@@ -98,3 +98,27 @@ export async function runPipeline(file: File, rulePack: string): Promise<Scan> {
   const evaluation = await evaluateScan(draft, rulePack);
   return { ...draft, findings: evaluation.findings, overall: evaluation.overall };
 }
+
+/**
+ * Persists an assembled scan through POST /api/scan so it becomes a durable, evidence-chained
+ * record rather than something that only ever lived in the browser's sessionStorage. This never
+ * throws: no network, no Supabase configured, or a non-200 all just report `persisted: false`
+ * with the original scan handed back unchanged, because losing a completed inspection to a
+ * missing database is worse than leaving it unfiled. See app/capture/page.tsx, which falls back
+ * to exactly today's sessionStorage + /result/live path whenever `persisted` comes back false.
+ */
+export async function persistScan(scan: Scan): Promise<{ scan: Scan; persisted: boolean }> {
+  try {
+    const response = await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(scan),
+    });
+    if (!response.ok || response.headers.get("X-Scan-Repository") !== "supabase") {
+      return { scan, persisted: false };
+    }
+    return { scan: (await response.json()) as Scan, persisted: true };
+  } catch {
+    return { scan, persisted: false };
+  }
+}

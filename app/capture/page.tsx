@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Scan } from "@/lib/types";
-import { PipelineIndeterminateError, PipelineUnavailableError, runPipeline } from "@/lib/api";
+import { PipelineIndeterminateError, PipelineUnavailableError, persistScan, runPipeline } from "@/lib/api";
 import { VerdictBadge } from "@/components/scan/VerdictBadge";
 
 type ScanResponse = Scan & { stub?: boolean };
@@ -58,7 +58,14 @@ export default function CapturePage() {
         // The API contracts return analytical output, not an image URL. Keep the selected
         // browser preview available to the live result screen without altering any analysis.
         result.image_url = await readAsDataUrl(file);
-        sessionStorage.setItem(`scan:${liveResult.scan_id}`, JSON.stringify(liveResult));
+        // Persist so the inspection becomes a durable, evidence-chained record instead of
+        // living only in sessionStorage. persistScan() never throws — no Supabase configured,
+        // or the request failing outright, must never cost the officer a completed inspection,
+        // so when it reports `persisted: false` we keep exactly today's sessionStorage +
+        // /result/live path with the scan runPipeline already produced.
+        const outcome = await persistScan(result);
+        if (outcome.persisted) result = outcome.scan;
+        sessionStorage.setItem(`scan:${result.scan_id}`, JSON.stringify(result));
       } catch (caught) {
         if (!(caught instanceof PipelineUnavailableError)) throw caught;
         const form = new FormData(); form.append("image", file);
