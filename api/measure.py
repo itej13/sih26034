@@ -36,6 +36,16 @@ MARKER_MM = 40.0
 # so a 1 mm numeral is 10 px tall. Raising this does not create detail the source lacks.
 PX_PER_MARKER = 400
 MAX_SQUARENESS_RESIDUAL = 0.05
+# The marker's true edge length is itself uncertain. MARKER_MM is one caliper reading of one
+# printed card applied to every card in the batch: print scale, lamination and humidity all move
+# it, and none of that gets better when the camera moves closer. Corner localisation alone
+# therefore cannot be the whole scale budget — without this term a sharper photograph reports a
+# tighter scale than the card can physically justify.
+#
+# Held at the 1.5% the project used before per-photo corner localisation existed, so the interval
+# never narrows below what has been relied on so far. The caliper ground-truth sheet is what
+# should replace this number.
+MARKER_MM_REL_U = 0.015
 
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 
@@ -107,13 +117,18 @@ def scale_uncertainty_mm_per_px(corners, corner_u_px, mm_per_px):
 
     An edge uses two localised corners, so its uncertainty is sqrt(2) times one corner's
     uncertainty. Dividing by the marker's observed mean edge length makes a larger/sharper
-    marker earn a tighter uncertainty rather than inheriting a fixture value.
+    marker earn a tighter uncertainty rather than inheriting a fixture value — but only down
+    to MARKER_MM_REL_U, below which the limit is the printed card, not the photograph.
     """
     edges = [np.linalg.norm(corners[i] - corners[(i + 1) % 4]) for i in range(4)]
     mean_edge_px = float(np.mean(edges))
     if mean_edge_px <= 0:
         raise ValueError("marker edge length is not positive")
-    return float(mm_per_px * np.sqrt(2) * corner_u_px / mean_edge_px)
+    # Two independent contributions, combined in quadrature: how well this photograph locates
+    # the corners, and how well the printed card's edge length is known at all. The first
+    # improves with a bigger, sharper marker; the second never does.
+    corner_rel = np.sqrt(2) * corner_u_px / mean_edge_px
+    return float(mm_per_px * float(np.hypot(corner_rel, MARKER_MM_REL_U)))
 
 
 def to_rectified(h_matrix, points):

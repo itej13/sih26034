@@ -34,6 +34,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from api.measure import (  # noqa: E402
     MARKER_MM,
+    MARKER_MM_REL_U,
     PX_PER_MARKER,
     NoMarker,
     _half_max_extent,
@@ -221,6 +222,28 @@ def main():
     entrypoint = measure_image_bytes(encoded.tobytes(), poly_rect.tolist(), "mrp")
     assert entrypoint["measurement_valid"] is True
     assert abs(entrypoint["calibration"]["uncertainty_mm_per_px"] - calibrated["uncertainty_mm_per_px"]) < 1e-12
+
+    # ...and it must MEASURE with that uncertainty, not merely report it. Comparing the reported
+    # metadata against a second rectify() says nothing about the value actually handed to
+    # measure_numeral: with only that check in place, hardcoding the argument back to the historic
+    # 0.0006 — or to 1e-9 — still passed this file.
+    independent = measure_numeral(
+        calibrated["image"], poly_rect, calibrated["mm_per_px"],
+        calibrated["uncertainty_mm_per_px"], calibrated["squareness"],
+    )
+    reported = next(m for m in entrypoint["measurements"] if m["metric"] == "numeral_height_mm")
+    assert abs(reported["expanded_uncertainty_mm"] - independent["expanded_uncertainty_mm"]) < 1e-9, (
+        "the entrypoint's interval must follow from the calibration it reported, got "
+        f"{reported['expanded_uncertainty_mm']:.6f} against "
+        f"{independent['expanded_uncertainty_mm']:.6f}"
+    )
+
+    # However sharp the photograph, scale can never be known better than the printed card is.
+    floor = calibrated["mm_per_px"] * MARKER_MM_REL_U
+    assert calibrated["uncertainty_mm_per_px"] >= floor, (
+        f"scale uncertainty {calibrated['uncertainty_mm_per_px']:.6f} fell below the card's own "
+        f"tolerance {floor:.6f} — corner localisation cannot buy confidence the card lacks"
+    )
 
     # A clearly undersized numeral must be called, not hedged.
     master, poly, true_mm = synthetic_pack(0.6)
