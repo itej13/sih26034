@@ -16,8 +16,8 @@ export async function createClient() {
             )
           } catch {
             // Called from a Server Component, where cookies are read-only and set() throws.
-            // Ignorable ONLY once middleware refreshes the session on every request — until
-            // that exists, a session can expire without being renewed. See PR #1.
+            // Ignorable because middleware.ts refreshes the session on every request now —
+            // a token renewed there reaches the browser even though this write can't.
           }
         },
       },
