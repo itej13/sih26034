@@ -35,11 +35,6 @@ MARKER_MM = 40.0
 # Rectified resolution for the marker. Sets mm_per_px: 400 px / 40 mm = 0.1 mm per pixel,
 # so a 1 mm numeral is 10 px tall. Raising this does not create detail the source lacks.
 PX_PER_MARKER = 400
-# Calibrated scale uncertainty carried into the measurement budget. This is the card/corner
-# uncertainty, not a frontend estimate or a legal threshold.
-# Relative scale uncertainty for the rectified grid. Keep this relative: mm_per_px changes
-# with the chosen rectified grid, while the calibration-card corner uncertainty does not.
-SCALE_RELATIVE_U = 0.015
 MAX_SQUARENESS_RESIDUAL = 0.05
 
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -62,6 +57,7 @@ def rectify(img):
         raise NoMarker("No calibration marker found in frame.")
 
     src = corners[0].reshape(4, 2).astype(np.float32)
+    corner_u_px, refined = corner_localisation_uncertainty(img, src)
     # Winding must match detectMarkers' order or the image comes out mirrored while the
     # numbers stay plausible — which is exactly why nobody notices until they see an overlay.
     dst = np.float32(
@@ -73,16 +69,51 @@ def rectify(img):
         ]
     )
 
-    h_matrix = cv2.getPerspectiveTransform(src, dst)
+    h_matrix = cv2.getPerspectiveTransform(refined, dst)
     out_h, out_w = img.shape[0], img.shape[1]
     rect = cv2.warpPerspective(img, h_matrix, (out_w, out_h))
 
     return {
         "image": rect,
         "mm_per_px": MARKER_MM / PX_PER_MARKER,
+        "uncertainty_mm_per_px": scale_uncertainty_mm_per_px(
+            refined, corner_u_px, MARKER_MM / PX_PER_MARKER
+        ),
+        "corner_localisation_u_px": corner_u_px,
         "squareness": squareness_residual(src),
         "H": h_matrix,
     }
+
+
+def corner_localisation_uncertainty(img, corners):
+    """Estimate a one-coordinate corner uncertainty from this photograph.
+
+    The detector's corners are refined against the image; their observed correction is
+    combined with the standard uncertainty of one pixel of sampling quantisation (1/sqrt(12)).
+    This is an image-derived localisation budget, never a fixture-provided scale constant.
+    """
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    initial = np.asarray(corners, dtype=np.float32).reshape(-1, 1, 2)
+    refined = cv2.cornerSubPix(
+        gray, initial.copy(), (5, 5), (-1, -1),
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.01),
+    ).reshape(-1, 2)
+    correction = refined - initial.reshape(-1, 2)
+    return float(np.sqrt(np.mean(correction**2) + 1.0 / 12.0)), refined
+
+
+def scale_uncertainty_mm_per_px(corners, corner_u_px, mm_per_px):
+    """Propagate measured marker-corner localisation into scale uncertainty.
+
+    An edge uses two localised corners, so its uncertainty is sqrt(2) times one corner's
+    uncertainty. Dividing by the marker's observed mean edge length makes a larger/sharper
+    marker earn a tighter uncertainty rather than inheriting a fixture value.
+    """
+    edges = [np.linalg.norm(corners[i] - corners[(i + 1) % 4]) for i in range(4)]
+    mean_edge_px = float(np.mean(edges))
+    if mean_edge_px <= 0:
+        raise ValueError("marker edge length is not positive")
+    return float(mm_per_px * np.sqrt(2) * corner_u_px / mean_edge_px)
 
 
 def to_rectified(h_matrix, points):
@@ -297,13 +328,13 @@ def measure_image_bytes(image_bytes, numeral_poly, field="mrp"):
         "mode": "aruco_card",
         "marker_mm": MARKER_MM,
         "mm_per_px": calibrated["mm_per_px"],
-        "uncertainty_mm_per_px": calibrated["mm_per_px"] * SCALE_RELATIVE_U,
+        "uncertainty_mm_per_px": calibrated["uncertainty_mm_per_px"],
         "squareness_residual": calibrated["squareness"],
     }
     if calibrated["squareness"] > MAX_SQUARENESS_RESIDUAL:
         return {"calibration": calibration, "measurements": [], "measurement_valid": False,
                 "error": "calibration geometry is unreliable"}
-    u_mm_per_px = calibrated["mm_per_px"] * SCALE_RELATIVE_U
+    u_mm_per_px = calibrated["uncertainty_mm_per_px"]
     measured = measure_numeral(calibrated["image"], numeral_poly, calibrated["mm_per_px"], u_mm_per_px, calibrated["squareness"])
     measurements = [{"field": field, "metric": "numeral_height_mm", "value": measured["height_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2}]
     if measured["width_mm"] is not None:

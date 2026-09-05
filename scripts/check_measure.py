@@ -40,7 +40,6 @@ from api.measure import (  # noqa: E402
     _ink_mask,
     measure_numeral,
     measure_image_bytes,
-    SCALE_RELATIVE_U,
     rectify,
     squareness_residual,
     to_rectified,
@@ -135,10 +134,9 @@ def measure_through_pipeline(master, poly, tilt_px, camera_px_per_mm=10.0):
         np.asarray(poly, np.float32).reshape(-1, 1, 2), M
     ).reshape(-1, 2)
     poly_rect = to_rectified(r["H"], poly_photo)
-    # 1.5% relative uncertainty on the scale, in line with the fixture
-    # (0.0412 ± 0.0006 mm/px). This is the number the caliper sheet will replace.
+    # The scale budget is calculated from this image's marker-corner localisation.
     return measure_numeral(
-        r["image"], poly_rect, r["mm_per_px"], r["mm_per_px"] * 0.015, r["squareness"]
+        r["image"], poly_rect, r["mm_per_px"], r["uncertainty_mm_per_px"], r["squareness"]
     )
 
 
@@ -153,6 +151,10 @@ def main():
     for marker_px in (180, 300, 460):
         r = rectify(synthetic_photo(marker_px=marker_px))
         assert abs(r["mm_per_px"] - expected) < 1e-9, "scale moved with camera distance"
+
+    near = rectify(synthetic_photo(marker_px=180))["uncertainty_mm_per_px"]
+    far = rectify(synthetic_photo(marker_px=460))["uncertainty_mm_per_px"]
+    assert near > far > 0, "scale uncertainty must be derived from corner localisation"
 
     tilted = rectify(synthetic_photo(tilt=55))["squareness"]
     assert tilted > flat["squareness"], "tilt must raise the squareness residual"
@@ -208,8 +210,7 @@ def main():
     # A wide enough uncertainty must never produce a verdict, however far the point value sits.
     assert verdict(0.50, 0.60, 1.0) == "INDETERMINATE"
 
-    # The HTTP entrypoint must use the same relative scale uncertainty as the core. This
-    # catches accidentally lifting the fixture's absolute 0.0006 mm/px onto the 0.1 mm grid.
+    # The HTTP entrypoint must carry the image-derived corner-localisation uncertainty.
     master, poly, _ = synthetic_pack(2.0)
     photo, transform = photograph(master, 0.0, camera_px_per_mm=10.0)
     calibrated = rectify(photo)
@@ -219,7 +220,7 @@ def main():
     assert ok, "synthetic photo must encode"
     entrypoint = measure_image_bytes(encoded.tobytes(), poly_rect.tolist(), "mrp")
     assert entrypoint["measurement_valid"] is True
-    assert abs(entrypoint["calibration"]["uncertainty_mm_per_px"] - entrypoint["calibration"]["mm_per_px"] * SCALE_RELATIVE_U) < 1e-12
+    assert abs(entrypoint["calibration"]["uncertainty_mm_per_px"] - calibrated["uncertainty_mm_per_px"]) < 1e-12
 
     # A clearly undersized numeral must be called, not hedged.
     master, poly, true_mm = synthetic_pack(0.6)
