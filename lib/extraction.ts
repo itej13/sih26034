@@ -1,4 +1,4 @@
-import sample from "@/fixtures/scan.sample.json";
+import sample from "../fixtures/scan.sample.json" with { type: "json" };
 import type { ExtractResponse } from "@/lib/api";
 
 export interface ExtractionProvider {
@@ -10,7 +10,7 @@ export interface ExtractionProvider {
 export class FixtureExtractionProvider implements ExtractionProvider {
   readonly mode = "fixture" as const;
   async extract(_image: File): Promise<ExtractResponse> {
-    return { fields: sample.fields, pdp: sample.pdp } as unknown as ExtractResponse;
+    return { fields: sample.fields, pdp: sample.pdp, other_print: sample.other_print } as unknown as ExtractResponse;
   }
 }
 

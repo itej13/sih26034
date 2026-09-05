@@ -73,7 +73,7 @@
       "rule_text": "the retail sale price of the package shall clearly indicate that it is the maximum retail price inclusive of all taxes in Indian currency:",
       "applies_to": "mrp",
       "predicate": "matches",
-      "pattern": "(?=.*(?:mrp|maximum retail price|max\\.? retail price))(?=.*incl)(?=.*tax)",
+      "pattern": "(?=.*(?:m\\.?r\\.?p\\.?|maximum retail price|max\\.? retail price))(?=.*incl)(?=.*tax)",
       "message": "The price declaration does not state that it is the maximum retail price inclusive of all taxes."
     },
     {

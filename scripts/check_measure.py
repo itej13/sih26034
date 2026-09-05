@@ -25,6 +25,7 @@ and it needs the ground-truth sheet: glossy laminate, curved packs, and print th
 as clean as cv2.putText.
 """
 
+import math
 import sys
 from pathlib import Path
 
@@ -34,6 +35,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from api.measure import (  # noqa: E402
     MARKER_MM,
+    MAX_SQUARENESS_RESIDUAL,
     MARKER_MM_REL_U,
     PX_PER_MARKER,
     NoMarker,
@@ -78,7 +80,8 @@ def _font_scale_for(height_px, text, thickness):
     return best
 
 
-def synthetic_pack(numeral_mm, text="45.00", light_on_dark=False, ink=35, ground=232):
+def synthetic_pack(numeral_mm, text="45.00", light_on_dark=False, ink=35, ground=232,
+                   marker_at=(6, 6), text_at=(12, 72)):
     """A flat master drawn in millimetre space: a 40 mm marker and digits of known height.
 
     Returns the master image, the digits' polygon in master pixels, and the true height of
@@ -93,12 +96,13 @@ def synthetic_pack(numeral_mm, text="45.00", light_on_dark=False, ink=35, ground
     marker_px = int(MARKER_MM * px_mm)
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
     marker = cv2.aruco.generateImageMarker(dictionary, 7, marker_px)
-    canvas[int(6 * px_mm) : int(6 * px_mm) + marker_px, int(6 * px_mm) : int(6 * px_mm) + marker_px] = marker
+    mx, my = int(marker_at[0] * px_mm), int(marker_at[1] * px_mm)
+    canvas[my : my + marker_px, mx : mx + marker_px] = marker
 
     target_px = numeral_mm * px_mm
     thickness = max(1, int(round(target_px / 8)))
     scale = _font_scale_for(target_px, text, thickness)
-    org = (int(12 * px_mm), int(72 * px_mm))
+    org = (int(text_at[0] * px_mm), int(text_at[1] * px_mm))
     cv2.putText(canvas, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, int(fg), thickness,
                 cv2.LINE_AA)
 
@@ -158,7 +162,35 @@ def main():
     assert near > far > 0, "scale uncertainty must be derived from corner localisation"
 
     tilted = rectify(synthetic_photo(tilt=55))["squareness"]
-    assert tilted > flat["squareness"], "tilt must raise the squareness residual"
+    assert tilted > MAX_SQUARENESS_RESIDUAL, (
+        f"a tilted card must FAIL the gate, not merely score higher than a flat one: "
+        f"{tilted:.5f} against the {MAX_SQUARENESS_RESIDUAL} threshold"
+    )
+
+    # Shear is the half of "tilted" that edge lengths cannot see. A card sheared into a
+    # rhombus keeps four equal edges however far it leans, so std(edges)/mean(edges) returned
+    # exactly 0.00000 for a card at 10 degrees and the gate passed the very capture it exists
+    # to reject — a wrong millimetre value with no error and full confidence on screen.
+    def rhombus(degrees):
+        a = math.radians(degrees)
+        return np.float32([
+            [0, 0],
+            [400, 0],
+            [400 + 400 * math.cos(a), 400 * math.sin(a)],
+            [400 * math.cos(a), 400 * math.sin(a)],
+        ])
+
+    for degrees in (80, 60, 30, 10):
+        sheared = squareness_residual(rhombus(degrees))
+        assert sheared > MAX_SQUARENESS_RESIDUAL, (
+            f"a card sheared to {degrees} degrees has four equal edges and must still fail "
+            f"the gate, got {sheared:.5f}"
+        )
+
+    # ...while the corner jitter of an ordinary good capture must not trip it, or every
+    # honest photograph returns INDETERMINATE and the tool is useless.
+    jitter = squareness_residual(np.float32([[1, 0], [401, 2], [399, 401], [0, 400]]))
+    assert jitter < MAX_SQUARENESS_RESIDUAL, f"a near-square must pass, got {jitter:.5f}"
 
     try:
         rectify(np.full((400, 400, 3), 235, np.uint8))
@@ -189,6 +221,24 @@ def main():
                 f"±{m['expanded_uncertainty_mm']:.3f}"
             )
 
+    # --- 2b. the card does not have to sit above and left of the declaration -
+    # The rectified canvas used to keep the source's dimensions with the marker pinned at the
+    # origin, so anything above or left of the card landed at a negative coordinate and fell
+    # off it. A card placed below or right of the numerals failed with "numeral polygon is
+    # too small to measure" — an undocumented capture rule wearing a measurement error's face.
+    for label, marker_at, text_at in (
+        ("card above-left of the declaration", (6, 6), (12, 72)),
+        ("card below-right of the declaration", (74, 44), (8, 14)),
+        ("card to the right of the declaration", (70, 35), (6, 40)),
+    ):
+        master, poly, true_mm = synthetic_pack(4.0, marker_at=marker_at, text_at=text_at)
+        m = measure_through_pipeline(master, poly, 0.0)
+        err = abs(m["height_mm"] - true_mm)
+        assert err <= m["expanded_uncertainty_mm"], (
+            f"{label}: measured {m['height_mm']:.3f} against true {true_mm:.3f}, outside the "
+            f"stated ±{m['expanded_uncertainty_mm']:.3f}"
+        )
+
     # --- 3. polarity: light text on dark packaging --------------------------
     master, poly, true_mm = synthetic_pack(2.0, light_on_dark=True)
     m = measure_through_pipeline(master, poly, 0.0)
@@ -202,6 +252,31 @@ def main():
     assert m["width_mm"] is not None, "width must be measured for the ratio clause"
     assert 0.3 < m["width_mm"] / m["height_mm"] < 1.2, (
         f"implausible width-to-height ratio {m['width_mm'] / m['height_mm']:.2f}"
+    )
+
+    # The width carries its OWN uncertainty, not the height's. They are different lengths:
+    # the scale and plane terms each scale with the dimension being measured, and the
+    # threshold term is the spread of the width readings, which was being collected and then
+    # thrown away. Rule 7(3)'s ratio clause is decided on this interval.
+    master, poly, _ = synthetic_pack(4.0, text="4500")
+    photo, transform = photograph(master, 0.0, camera_px_per_mm=10.0)
+    calibrated = rectify(photo)
+    poly_rect = to_rectified(calibrated["H"], cv2.perspectiveTransform(
+        np.asarray(poly, np.float32).reshape(-1, 1, 2), transform).reshape(-1, 2))
+    ok, encoded = cv2.imencode(".png", photo)
+    assert ok, "synthetic photo must encode"
+    both = measure_image_bytes(encoded.tobytes(), poly_rect.tolist(), "mrp")
+    height = next(m for m in both["measurements"] if m["metric"] == "numeral_height_mm")
+    width = next(m for m in both["measurements"] if m["metric"] == "numeral_width_mm")
+    assert width["expanded_uncertainty_mm"] > 0, "a width without an uncertainty is an opinion"
+    assert width["expanded_uncertainty_mm"] != height["expanded_uncertainty_mm"], (
+        "the width must carry its own uncertainty budget, not be handed the height's"
+    )
+    assert width["value"] < height["value"], "these digits are taller than they are wide"
+    assert width["expanded_uncertainty_mm"] < height["expanded_uncertainty_mm"], (
+        f"a smaller dimension must earn a smaller budget: width "
+        f"{width['value']:.2f}±{width['expanded_uncertainty_mm']:.3f} against height "
+        f"{height['value']:.2f}±{height['expanded_uncertainty_mm']:.3f}"
     )
 
     # --- 5. the guard band --------------------------------------------------
