@@ -7,13 +7,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 // token from createClient/createServerClient had nowhere to land until this file existed.
 // This does not gate any route: the app has no auth-based redirects yet, so it only
 // refreshes and passes the request through.
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
   // This runs on every route, so it must not be the thing that takes the app down. With no
   // Supabase project configured — a fresh clone, a teammate's laptop, the demo machine before
   // someone remembers the .env — createServerClient(undefined!, undefined!) throws, and
-  // because middleware wraps every request the whole site 500s rather than just the pages
+  // because proxy wraps every request the whole site 500s rather than just the pages
   // that actually need auth. Nothing here is authenticated yet, so pass through instead.
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
