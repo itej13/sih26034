@@ -66,8 +66,14 @@ def rectify(img):
     if ids is None or len(corners) == 0:
         raise NoMarker("No calibration marker found in frame.")
 
-    src = corners[0].reshape(4, 2).astype(np.float32)
+    # detectMarkers can return more than one: a second card in the frame, or a pattern on the
+    # packaging that happens to decode as a 4x4 marker. Taking index 0 made the scale source
+    # whichever the detector happened to find first. The calibration card is deliberately the
+    # largest marker in an inspection photograph, so choose by area rather than by arrival.
+    areas = [cv2.contourArea(c.reshape(4, 2).astype(np.float32)) for c in corners]
+    src = corners[int(np.argmax(areas))].reshape(4, 2).astype(np.float32)
     corner_u_px, refined = corner_localisation_uncertainty(img, src)
+
     # Winding must match detectMarkers' order or the image comes out mirrored while the
     # numbers stay plausible — which is exactly why nobody notices until they see an overlay.
     dst = np.float32(
@@ -79,8 +85,29 @@ def rectify(img):
         ]
     )
 
-    h_matrix = cv2.getPerspectiveTransform(refined, dst)
-    out_h, out_w = img.shape[0], img.shape[1]
+    # Fit the rectified canvas to where the photograph actually lands, instead of pinning the
+    # marker to the origin and keeping the source's width and height. Pinned to the origin,
+    # every point above or to the left of the card mapped to a negative coordinate and fell
+    # off the canvas — so photographing a pack with the card below or right of the declaration
+    # failed with "numeral polygon is too small to measure", an undocumented capture rule
+    # masquerading as a measurement error. Translating by the transformed bounding box keeps
+    # the whole panel addressable wherever the officer put the card. mm_per_px is untouched:
+    # the marker still spans exactly PX_PER_MARKER pixels.
+    base = cv2.getPerspectiveTransform(refined, dst)
+    src_h, src_w = img.shape[0], img.shape[1]
+    frame = np.float32([[0, 0], [src_w, 0], [src_w, src_h], [0, src_h]]).reshape(-1, 1, 2)
+    mapped = cv2.perspectiveTransform(frame, base).reshape(-1, 2)
+    min_xy = mapped.min(axis=0)
+    span = mapped.max(axis=0) - min_xy
+
+    # A wild homography can demand an enormous canvas, and warpPerspective would allocate it
+    # before squareness_residual ever gets to reject the capture. Cap at three times the
+    # source; anything needing more than that is a geometry this pipeline must refuse anyway.
+    out_w = int(min(max(np.ceil(span[0]), 1), src_w * 3))
+    out_h = int(min(max(np.ceil(span[1]), 1), src_h * 3))
+    translate = np.float32([[1, 0, -min_xy[0]], [0, 1, -min_xy[1]], [0, 0, 1]])
+    h_matrix = translate @ base
+
     rect = cv2.warpPerspective(img, h_matrix, (out_w, out_h))
 
     return {
@@ -90,7 +117,8 @@ def rectify(img):
             refined, corner_u_px, MARKER_MM / PX_PER_MARKER
         ),
         "corner_localisation_u_px": corner_u_px,
-        "squareness": squareness_residual(src),
+        "squareness": squareness_residual(refined),
+        "markers_detected": len(corners),
         "H": h_matrix,
     }
 
@@ -147,7 +175,16 @@ def squareness_residual(src):
     confident wrong millimetre value.
     """
     edges = [np.linalg.norm(src[i] - src[(i + 1) % 4]) for i in range(4)]
-    return float(np.std(edges) / np.mean(edges))
+    edge_spread = float(np.std(edges) / np.mean(edges))
+    # Edge lengths alone cannot see shear, and shear is half of what a tilted card does. A
+    # card sheared into a rhombus keeps four equal edges, so this returned exactly 0.00000
+    # for a card at 10 degrees — the gate passed the precise capture it exists to reject.
+    # A square's diagonals are equal and a rhombus's are not, so their disagreement is the
+    # axis that was missing. Combined in quadrature so neither failure mode masks the other.
+    d0 = np.linalg.norm(src[0] - src[2])
+    d1 = np.linalg.norm(src[1] - src[3])
+    diagonal_spread = float(abs(d0 - d1) / ((d0 + d1) / 2.0))
+    return float(np.hypot(edge_spread, diagonal_spread))
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +218,11 @@ def _crop(rect, poly, margin_frac=0.25):
     h, w = rect.shape[:2]
     xs, xe = int(max(0, x0 - m)), int(min(w, x1 + m))
     ys, ye = int(max(0, y0 - m)), int(min(h, y1 + m))
+    if x1 < 0 or y1 < 0 or x0 > w or y0 > h:
+        raise ValueError(
+            "the numeral falls outside the rectified area; photograph the calibration card on "
+            "the same panel as the declaration and closer to it"
+        )
     if xe - xs < 4 or ye - ys < 4:
         raise ValueError("numeral polygon is too small to measure")
     return rect[ys:ye, xs:xe]
@@ -290,6 +332,7 @@ def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
     if height_px <= 0:
         raise ValueError("measured height is not positive")
     height_mm = height_px * mm_per_px
+    width_mm = float(np.median(widths)) * mm_per_px if widths else None
 
     # --- uncertainty budget, combined in quadrature -------------------------
     # Every term below is in MILLIMETRES. Mixing a pixel count into this sum silently
@@ -307,10 +350,25 @@ def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
 
     u_c = float(np.sqrt(u_scale**2 + u_plane**2 + u_edge**2 + u_thresh**2))
 
+    # The width used to be returned carrying the HEIGHT's uncertainty. Two different lengths
+    # cannot share one absolute budget: the scale and plane terms each scale with the
+    # dimension being measured, and the threshold term is the spread of the WIDTH readings,
+    # which was being collected and then discarded. Reusing the height's number inflated a
+    # 3.1 mm width's interval from 3.9% to 5.4% — conservative, so it never manufactured a
+    # violation, but Rule 7(3)'s ratio clause is decided on this number and "it is the
+    # height's" is not an answer that survives being asked.
+    width_u = None
+    if width_mm is not None:
+        w_scale = width_mm * (u_mm_per_px / mm_per_px) if mm_per_px else 0.0
+        w_plane = width_mm * squareness
+        w_thresh = (max(widths) - min(widths)) / 2.0 * mm_per_px
+        width_u = 2 * float(np.sqrt(w_scale**2 + w_plane**2 + u_edge**2 + w_thresh**2))
+
     return {
         "height_mm": height_mm,
-        "width_mm": float(np.median(widths)) * mm_per_px if widths else None,
+        "width_mm": width_mm,
         "expanded_uncertainty_mm": 2 * u_c,
+        "width_expanded_uncertainty_mm": width_u,
         "k": 2,
         "components_mm": {
             "scale": u_scale,
@@ -353,7 +411,7 @@ def measure_image_bytes(image_bytes, numeral_poly, field="mrp"):
     measured = measure_numeral(calibrated["image"], numeral_poly, calibrated["mm_per_px"], u_mm_per_px, calibrated["squareness"])
     measurements = [{"field": field, "metric": "numeral_height_mm", "value": measured["height_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2}]
     if measured["width_mm"] is not None:
-        measurements.append({"field": field, "metric": "numeral_width_mm", "value": measured["width_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2})
+        measurements.append({"field": field, "metric": "numeral_width_mm", "value": measured["width_mm"], "expanded_uncertainty_mm": measured["width_expanded_uncertainty_mm"], "k": 2})
     return {"calibration": calibration, "measurements": measurements, "measurement_valid": True}
 
 
