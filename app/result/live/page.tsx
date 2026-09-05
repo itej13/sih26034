@@ -12,9 +12,20 @@ import type { Scan } from "@/lib/types";
 export default function LiveResultPage() {
   const [scan] = useState<Scan | undefined>(() => {
     if (typeof window === "undefined") return undefined;
-    const keys = Object.keys(sessionStorage).filter((key) => key.startsWith("scan:"));
-    const latest = keys.at(-1);
-    return latest ? JSON.parse(sessionStorage.getItem(latest) ?? "null") as Scan : undefined;
+    try {
+      // Keys are "scan:live_<capturedAtMs>" (see runPipeline's scan_id), so the timestamp
+      // that makes one scan "newest" is already in the key — sort on it explicitly rather
+      // than trusting Object.keys() insertion order.
+      const prefix = "scan:live_";
+      const latest = Object.keys(sessionStorage)
+        .filter((key) => key.startsWith(prefix))
+        .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)))[0];
+      if (!latest) return undefined;
+      const stored = sessionStorage.getItem(latest);
+      return stored ? (JSON.parse(stored) as Scan) : undefined;
+    } catch {
+      return undefined;
+    }
   });
   if (!scan) return <main className="page-shell"><section className="panel p-8"><p className="eyebrow">Live result</p><h1 className="mt-2 text-2xl font-semibold text-slate-950">No live result is available</h1><p className="mt-2 text-sm text-slate-600">Start a new inspection to view backend output here.</p><Link href="/capture" className="button-primary mt-5">Start inspection</Link></section></main>;
   const measurement = scan.measurements[0];
