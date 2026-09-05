@@ -155,6 +155,25 @@ single point of failure if the credentials arrive late.
   ever selected by PDP area, `0` will read as "tiny package" and pick the most lenient band. That is
   invariant-3-consistent, but it should become a deliberate choice rather than a leftover.
 
+- **Evidence rows cannot be deleted, and they pin their scan.** `evidence.scan_id references
+  scans (scan_id)` carries **no** `on delete cascade` — unlike `fields`, `measurements` and
+  `findings` — and an `evidence_no_delete` trigger raises on any delete. Once a scan has an
+  evidence row, Postgres refuses to delete that scan. `scripts/reset.mts` therefore wipes child
+  rows and re-seeds; **no reset can return the database to blank.** That is the chain working: a
+  record you can delete is not evidence.
+- **A `data:` URL built by interpolation truncates.** `scripts/seed.mts` reported
+  `SyntaxError: Unexpected end of input` for code that was not malformed, because its loader hook
+  was interpolated into `` `data:text/javascript,${source}` `` raw. Encode with
+  `encodeURIComponent` first. **`scripts/check-packs.mts` has the same raw pattern** and works only
+  because its shorter body happens to contain nothing that truncates — one edit away from the same
+  failure.
+- **Two rules share `rule_ref` 7(3)**, so `rule_ref` is not a unique identifier for a finding.
+  Anything keying, grouping or looking up findings by `rule_ref` alone is wrong on a scan where both
+  7(3) rules agree — which the fixtures never do, so tests will not catch it.
+- **A browser devtools console buffer can outlive navigations and reloads.** Chasing a fixed bug
+  for several rounds this run came down to reading stale errors in a long-lived tab. When verifying
+  a console-visible fix, open a **fresh tab**; do not trust a reload to clear the log.
+
 ## 8. The 2021 rule pack, and the stage beat built on it
 
 The stage script's 2:30–5:00 beat was a live 2026 → 2021 pack swap with *the verdict changing on
