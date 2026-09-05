@@ -279,6 +279,50 @@ def main():
         f"{height['value']:.2f}±{height['expanded_uncertainty_mm']:.3f}"
     )
 
+    # --- 4b. contrast, Rule 9(1)(b) ------------------------------------------
+    # The Gazette says numerals must "contrast conspicuously" with the background but states
+    # no figure, so this project will not invent a legal threshold (invariant 1). The constant
+    # below exists only to prove the measurement responds to real luminance separation — it is
+    # not wired into any rule pack. Rule 9(1)(b) stays UNASSESSABLE in lib/evaluate.ts: wiring
+    # it there requires a `threshold` on every pack carrying the predicate, and
+    # packs/lmpc-2021-01-01.json — outside this file's ownership — does not have one yet.
+    CONTRAST_ENGINEERING_PROXY = 0.15
+
+    low_master, low_poly, _ = synthetic_pack(4.0, text="4500", ink=100, ground=125)
+    high_master, high_poly, _ = synthetic_pack(4.0, text="4500", ink=35, ground=232)
+    low_c = measure_through_pipeline(low_master, low_poly, 0.0)
+    high_c = measure_through_pipeline(high_master, high_poly, 0.0)
+
+    assert low_c["contrast_expanded_uncertainty"] > 0, "a contrast measurement must carry an uncertainty"
+    assert high_c["contrast_expanded_uncertainty"] > 0, "a contrast measurement must carry an uncertainty"
+    # This is the assertion a stubbed-constant contrast term cannot survive: two labels with
+    # different ink-to-background luminance gaps must measure different contrast.
+    assert low_c["contrast_ratio"] < high_c["contrast_ratio"], (
+        f"less luminance separation must measure lower contrast, got low="
+        f"{low_c['contrast_ratio']:.3f} high={high_c['contrast_ratio']:.3f}"
+    )
+    assert verdict(low_c["contrast_ratio"], low_c["contrast_expanded_uncertainty"], CONTRAST_ENGINEERING_PROXY) == "VIOLATION", (
+        f"a near-illegible contrast must be caught, got {low_c['contrast_ratio']:.3f} "
+        f"± {low_c['contrast_expanded_uncertainty']:.3f} against {CONTRAST_ENGINEERING_PROXY}"
+    )
+    assert verdict(high_c["contrast_ratio"], high_c["contrast_expanded_uncertainty"], CONTRAST_ENGINEERING_PROXY) != "VIOLATION", (
+        f"an ordinary dark-on-light label must not be falsely accused, got "
+        f"{high_c['contrast_ratio']:.3f} ± {high_c['contrast_expanded_uncertainty']:.3f} against "
+        f"{CONTRAST_ENGINEERING_PROXY}"
+    )
+
+    # ...and the HTTP entrypoint must carry it through to the wire shape, same as width.
+    photo, transform = photograph(low_master, 0.0, camera_px_per_mm=10.0)
+    calibrated = rectify(photo)
+    poly_rect = to_rectified(calibrated["H"], cv2.perspectiveTransform(
+        np.asarray(low_poly, np.float32).reshape(-1, 1, 2), transform).reshape(-1, 2))
+    ok, encoded = cv2.imencode(".png", photo)
+    assert ok, "synthetic photo must encode"
+    payload = measure_image_bytes(encoded.tobytes(), poly_rect.tolist(), "mrp")
+    contrast = next(m for m in payload["measurements"] if m["metric"] == "contrast_ratio")
+    assert contrast["expanded_uncertainty_mm"] > 0, "contrast in the wire payload needs an uncertainty"
+    assert contrast["k"] == 2
+
     # --- 5. the guard band --------------------------------------------------
     assert verdict(1.24, 0.12, 1.0) == "COMPLIANT"
     assert verdict(0.82, 0.10, 1.0) == "VIOLATION"

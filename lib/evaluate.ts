@@ -78,8 +78,16 @@ export interface NotAssessed {
  * here the day its measurement lands.
  */
 export const UNASSESSABLE: Record<string, string> = {
+  // api/measure.py now returns a contrast_ratio with its own k=2 uncertainty, so the old
+  // reason ("no measurement exists") stopped being true. What is still missing is a lawful
+  // threshold: 9(1)(b) says "conspicuously" and names no figure, so any number is an
+  // engineering proxy. scripts/check_measure.py validates 0.15 as a conservative one — wiring
+  // it needs that threshold in BOTH packs, a contrast_ratio in the frozen fixtures (without
+  // which scan.compliant.json rolls up INDETERMINATE), and all three lanes agreeing to it.
   contrast_min:
-    "No colour or contrast measurement is produced by the pipeline, so Rule 9(1)(b) cannot be judged from this scan.",
+    "A contrast ratio is measured for this scan, but Rule 9(1)(b) requires only that numerals " +
+    "contrast \"conspicuously\" and names no figure. Any threshold would be an engineering " +
+    "proxy rather than law, so this rule is reported for the officer rather than judged.",
   consistent_with:
     "No sticker or overlaid-declaration detection exists yet, so this rule cannot be judged from this scan.",
 };

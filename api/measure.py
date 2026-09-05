@@ -252,6 +252,42 @@ def _ink_mask(crop, threshold_shift=0.0):
     return mask, level
 
 
+def _contrast(crop, mask):
+    """Mean luminance inside the ink mask against its surrounding background ring.
+
+    Rule 9(1)(b) asks whether the numerals "contrast conspicuously" with the label — a
+    perceptual judgement, but this pipeline only has pixels, so it is reduced to the
+    Michelson contrast between the two regions the ink mask already separates:
+    |ink - background| / (ink + background), bounded in [0, 1] and indifferent to which
+    side is darker. Dilating the mask before treating everything outside it as background
+    keeps the anti-aliased edge — a blend of both luminances — out of either estimate.
+
+    Returns the ratio and its standard error, propagated from each region's own photometric
+    noise through the ratio's partial derivatives — the same quadrature approach as every
+    other uncertainty term in this file.
+    """
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    ring = ~cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    ink_px = gray[mask].astype(np.float64)
+    ring_px = gray[ring].astype(np.float64)
+    if ink_px.size == 0 or ring_px.size == 0:
+        raise ValueError("not enough background around the numeral to judge contrast")
+
+    ink_mean, bg_mean = float(ink_px.mean()), float(ring_px.mean())
+    denom = ink_mean + bg_mean
+    if denom <= 0:
+        return 0.0, 0.0
+    ratio = abs(ink_mean - bg_mean) / denom
+
+    ink_sem = float(ink_px.std()) / np.sqrt(ink_px.size) if ink_px.size > 1 else 0.0
+    ring_sem = float(ring_px.std()) / np.sqrt(ring_px.size) if ring_px.size > 1 else 0.0
+    sem = float(np.hypot(
+        (2.0 * bg_mean / denom**2) * ink_sem,
+        (2.0 * ink_mean / denom**2) * ring_sem,
+    ))
+    return ratio, sem
+
+
 def _deskew(crop):
     """Rotate so the baseline is horizontal. Printing is rarely square to the marker."""
     mask, _ = _ink_mask(crop)
@@ -316,7 +352,7 @@ def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
     """
     crop = _deskew(_crop(rect, poly))
 
-    heights, widths = [], []
+    heights, widths, contrasts, contrast_sems = [], [], [], []
     for shift in (-0.10, 0.0, 0.10):
         mask, _ = _ink_mask(crop, threshold_shift=shift)
         heights.append(_half_max_extent(mask.sum(axis=1).astype(float)))
@@ -327,6 +363,9 @@ def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
             # without a glyph classifier. Swap for per-glyph widths keyed to recognised
             # characters if a pack is ever failed on this clause alone.
             widths.append(float(np.median(w)))
+        ratio, sem = _contrast(crop, mask)
+        contrasts.append(ratio)
+        contrast_sems.append(sem)
 
     height_px = heights[1]
     if height_px <= 0:
@@ -364,11 +403,26 @@ def measure_numeral(rect, poly, mm_per_px, u_mm_per_px, squareness=0.0):
         w_thresh = (max(widths) - min(widths)) / 2.0 * mm_per_px
         width_u = 2 * float(np.sqrt(w_scale**2 + w_plane**2 + u_edge**2 + w_thresh**2))
 
+    # Contrast has no scale or plane term — a ratio of two means on the same crop does not
+    # care how many millimetres a pixel covers or whether the card sat flat. Its budget is
+    # photometric noise in each region's mean (contrast_sems[1], propagated through the ratio
+    # in _contrast) and the same segmentation sensitivity as height and width: how far the
+    # ratio moves when ink/background is separated differently across the three thresholds.
+    contrast_ratio = contrasts[1]
+    c_thresh = (max(contrasts) - min(contrasts)) / 2.0
+    contrast_u = 2 * float(np.hypot(contrast_sems[1], c_thresh))
+
     return {
         "height_mm": height_mm,
         "width_mm": width_mm,
         "expanded_uncertainty_mm": 2 * u_c,
         "width_expanded_uncertainty_mm": width_u,
+        # Dimensionless — a Michelson ratio, not a length. Named without the "_mm" suffix
+        # here; measure_image_bytes carries it into the wire shape under the project-wide
+        # "expanded_uncertainty_mm" key (invariant 2), which every measurement uses regardless
+        # of its actual unit.
+        "contrast_ratio": contrast_ratio,
+        "contrast_expanded_uncertainty": contrast_u,
         "k": 2,
         "components_mm": {
             "scale": u_scale,
@@ -412,6 +466,7 @@ def measure_image_bytes(image_bytes, numeral_poly, field="mrp"):
     measurements = [{"field": field, "metric": "numeral_height_mm", "value": measured["height_mm"], "expanded_uncertainty_mm": measured["expanded_uncertainty_mm"], "k": 2}]
     if measured["width_mm"] is not None:
         measurements.append({"field": field, "metric": "numeral_width_mm", "value": measured["width_mm"], "expanded_uncertainty_mm": measured["width_expanded_uncertainty_mm"], "k": 2})
+    measurements.append({"field": field, "metric": "contrast_ratio", "value": measured["contrast_ratio"], "expanded_uncertainty_mm": measured["contrast_expanded_uncertainty"], "k": 2})
     return {"calibration": calibration, "measurements": measurements, "measurement_valid": True}
 
 
