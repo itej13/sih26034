@@ -7,9 +7,10 @@
  */
 
 import lmpc20260701 from "@/packs/lmpc-2026-07-01.json";
+import lmpc20210101 from "@/packs/lmpc-2021-01-01.json";
 import type { RulePack } from "./evaluate";
 
-const PACKS = [lmpc20260701 as unknown as RulePack];
+const PACKS = [lmpc20260701 as unknown as RulePack, lmpc20210101 as unknown as RulePack];
 
 /** Newest effective_from wins, so a caller that names no pack gets current law. */
 export const latestPack: RulePack = [...PACKS].sort((a, b) =>
