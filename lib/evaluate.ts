@@ -25,7 +25,7 @@ export interface Rule {
   applies_to: FieldKey;
   predicate: string;
   message: string;
-  metric?: "numeral_height_mm" | "numeral_width_mm";
+  metric?: "numeral_height_mm" | "numeral_width_mm" | "contrast_ratio";
   threshold?: number;
   threshold_embossed?: number;
   numerator?: "numeral_height_mm" | "numeral_width_mm";
@@ -78,16 +78,6 @@ export interface NotAssessed {
  * here the day its measurement lands.
  */
 export const UNASSESSABLE: Record<string, string> = {
-  // api/measure.py now returns a contrast_ratio with its own k=2 uncertainty, so the old
-  // reason ("no measurement exists") stopped being true. What is still missing is a lawful
-  // threshold: 9(1)(b) says "conspicuously" and names no figure, so any number is an
-  // engineering proxy. scripts/check_measure.py validates 0.15 as a conservative one — wiring
-  // it needs that threshold in BOTH packs, a contrast_ratio in the frozen fixtures (without
-  // which scan.compliant.json rolls up INDETERMINATE), and all three lanes agreeing to it.
-  contrast_min:
-    "A contrast ratio is measured for this scan, but Rule 9(1)(b) requires only that numerals " +
-    "contrast \"conspicuously\" and names no figure. Any threshold would be an engineering " +
-    "proxy rather than law, so this rule is reported for the officer rather than judged.",
   consistent_with:
     "No sticker or overlaid-declaration detection exists yet, so this rule cannot be judged from this scan.",
 };
@@ -193,6 +183,8 @@ function decide(
       return minMmLookup(scan, rule, field);
     case "min_ratio":
       return minRatio(scan, rule);
+    case "contrast_min":
+      return contrastMin(scan, rule);
     case "clear_space":
       return clearSpace(scan, rule, field);
     case "present":
@@ -235,6 +227,23 @@ function minMm(scan: EvaluableScan, rule: Rule): Decision {
   return {
     verdict: verdictFor(m.value, m.expanded_uncertainty_mm, rule.threshold ?? 0),
     measured: `${mm(m.value)} ± ${mm(m.expanded_uncertainty_mm)} mm`,
+    required,
+  };
+}
+
+function contrastMin(scan: EvaluableScan, rule: Rule): Decision {
+  const threshold = rule.threshold ?? 0;
+  const required = `≥ ${threshold.toFixed(2)}`;
+  const m = measurementOf(scan, rule.applies_to, rule.metric);
+  if (!m) {
+    return undecided(required, `${rule.applies_to} contrast was not measured, so this rule is open.`);
+  }
+  // 0.15 is an engineering proxy, not a legal figure: 9(1)(b) says numerals must contrast
+  // "conspicuously" and names no number. Set conservatively so only a clearly low ratio reaches
+  // VIOLATION and anything near it stays INDETERMINATE.
+  return {
+    verdict: verdictFor(m.value, m.expanded_uncertainty_mm, threshold),
+    measured: `${m.value.toFixed(2)} ± ${m.expanded_uncertainty_mm.toFixed(2)}`,
     required,
   };
 }

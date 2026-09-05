@@ -90,6 +90,8 @@
       "rule_text": "numerals of the retail sale price and net quantity declaration shall be printed, painted or inscribed on the package in a colour that contrasts conspicuously with the background of the label;",
       "applies_to": "mrp",
       "predicate": "contrast_min",
+      "metric": "contrast_ratio",
+      "threshold": 0.15,
       "message": "The price and quantity numerals do not contrast conspicuously with the background."
     }
   ]

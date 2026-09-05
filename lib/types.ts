@@ -57,9 +57,18 @@ export interface LabelField {
 
 export interface Measurement {
   field: FieldKey;
-  metric: "numeral_height_mm" | "numeral_width_mm";
+  // contrast_ratio joined this union on 2026-09-05, when api/measure.py began returning it for
+  // Rule 9(1)(b). It was emitted, stored in both fixtures and judged for a while before the type
+  // admitted it existed — lib/fixtures.ts casts its JSON through `as unknown as Scan`, so the
+  // structural check that would have caught the omission never ran.
+  metric: "numeral_height_mm" | "numeral_width_mm" | "contrast_ratio";
   value: number;
-  /** Expanded uncertainty. Compare the INTERVAL to the legal limit, never the point value. */
+  /**
+   * Expanded uncertainty. Compare the INTERVAL to the legal limit, never the point value.
+   * Named `_mm` because the contract carries exactly one uncertainty field, but it holds
+   * whatever unit its metric is in — contrast_ratio is dimensionless. Anything rendering a
+   * measurement must take its unit from the metric, never assume millimetres.
+   */
   expanded_uncertainty_mm: number;
   k: 2;
 }

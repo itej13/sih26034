@@ -37,7 +37,7 @@ const REQUIRED_FIELDS = {
   min_mm_lookup: ["metric", "lookup_on", "table"],
   min_ratio: ["numerator", "denominator", "threshold"],
   clear_space: ["vertical_multiple", "horizontal_multiple"],
-  contrast_min: ["threshold"],
+  contrast_min: ["metric", "threshold"],
   consistent_with: ["expression"],
 };
 

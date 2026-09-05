@@ -148,35 +148,57 @@ const mrpHeight = (s: EvaluableScan) =>
 
 {
   // A rule the pipeline structurally cannot judge is reported, not folded into the verdict.
-  // If this regresses, every scan goes INDETERMINATE forever the moment Rule 9(1)(b) enters
-  // a pack — which would read on stage as caution and actually be a bug.
+  // If this regresses, every scan goes INDETERMINATE forever the moment an unassessable rule
+  // enters a pack — which would read on stage as caution and actually be a bug.
   // Built from one known rule rather than the whole pack, so the count below stays true as
-  // Advik adds rules the pipeline cannot yet judge.
+  // Advik adds rules the pipeline cannot yet judge. 6(3) is the one rule left in this state
+  // now that 9(1)(b) is wired to contrast_min; its rule_text is copied verbatim from the real
+  // r6-3-sticker-alteration rule rather than retyped, per invariant 4.
+  const sticker = pack.rules.find((r) => r.id === "r6-3-sticker-alteration");
+  assert.ok(sticker, "the pack must still carry the 6(3) sticker rule for this check to mean anything");
   const withUnassessable: RulePack = {
     ...pack,
     rules: [
       ...pack.rules.filter((r) => r.id === "r7-3-letter-height"),
       {
-        id: "x-contrast",
-        rule_ref: "9(1)(b)",
-        rule_text:
-          "numerals of the retail sale price and net quantity declaration shall be printed, painted or inscribed on the package in a colour that contrasts conspicuously with the background of the label;",
+        id: "x-sticker",
+        rule_ref: "6(3)",
+        rule_text: sticker.rule_text,
         applies_to: "mrp",
-        predicate: "contrast_min",
-        message: "The numerals do not contrast conspicuously with the background.",
+        predicate: "consistent_with",
+        message: "A sticker appears to alter a declaration required by these Rules.",
       },
     ],
   };
   const out = evaluate(structuredClone(compliant), withUnassessable);
   assert.equal(out.not_assessed.length, 1, "the unjudgeable rule is reported");
-  assert.equal(out.not_assessed[0].rule_ref, "9(1)(b)");
+  assert.equal(out.not_assessed[0].rule_ref, "6(3)");
   assert.ok(out.not_assessed[0].reason.length > 20, "and it says why");
   assert.ok(
-    out.findings.every((f) => f.rule_ref !== "9(1)(b)"),
+    out.findings.every((f) => f.rule_ref !== "6(3)"),
     "it produces no finding, because no finding was reached",
   );
   assert.equal(out.overall, "COMPLIANT",
     "a check that never ran must not hold the whole scan open");
+}
+
+// ---------------------------------------------------------------------------
+// Rule 9(1)(b) — now wired to contrast_min, judged rather than reported.
+// ---------------------------------------------------------------------------
+
+{
+  assert.deepEqual(byRef(sampleOut.findings, "9(1)(b)"), ["COMPLIANT"],
+    "sample: contrast 0.62 ± 0.04 clears the 0.15 threshold");
+  assert.deepEqual(byRef(compliantOut.findings, "9(1)(b)"), ["COMPLIANT"],
+    "compliant: contrast 0.62 ± 0.04 clears the 0.15 threshold");
+  assert.ok(
+    sampleOut.not_assessed.every((n) => n.rule_ref !== "9(1)(b)"),
+    "9(1)(b) is judged now, so it must not also appear in not_assessed",
+  );
+  assert.deepEqual(sampleOut.not_assessed.map((n) => n.rule_ref), ["6(3)"],
+    "the only rule left unjudged over the real pack is the sticker check");
+  assert.deepEqual(compliantOut.not_assessed.map((n) => n.rule_ref), ["6(3)"],
+    "the only rule left unjudged over the real pack is the sticker check");
 }
 
 // ---------------------------------------------------------------------------

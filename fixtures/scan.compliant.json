@@ -255,6 +255,13 @@
       "value": 1.48,
       "expanded_uncertainty_mm": 0.08,
       "k": 2
+    },
+    {
+      "field": "mrp",
+      "metric": "contrast_ratio",
+      "value": 0.62,
+      "expanded_uncertainty_mm": 0.04,
+      "k": 2
     }
   ],
   "findings": [
@@ -319,6 +326,15 @@
       "required": "matching the prescribed form",
       "rule_pack": "lmpc@2026-07-01",
       "rule_text": "the retail sale price of the package shall clearly indicate that it is the maximum retail price inclusive of all taxes in Indian currency:",
+      "message": null
+    },
+    {
+      "rule_ref": "9(1)(b)",
+      "verdict": "COMPLIANT",
+      "measured": "0.62 ± 0.04",
+      "required": "≥ 0.15",
+      "rule_pack": "lmpc@2026-07-01",
+      "rule_text": "numerals of the retail sale price and net quantity declaration shall be printed, painted or inscribed on the package in a colour that contrasts conspicuously with the background of the label;",
       "message": null
     }
   ],
