@@ -3,7 +3,7 @@
 Written for an agent that has never seen this project. Everything below was done **locally**;
 nothing was pushed, no pull request was opened, no deployment happened.
 
-Baseline `968eba2` → head `1f779bc`. Thirteen commits. All four gates green at both ends.
+Baseline `968eba2` → head `c7abf6b`. **Twenty commits across two runs** (2026-09-05 and 2026-09-06). All four gates green at both ends; `npm run check` is now nine `ok` lines.
 
 ---
 
@@ -68,6 +68,13 @@ be stepped in through npm. CI is unaffected: `.github/workflows/check.yml` insta
 | `25c207d` | `lib/evidence.ts` — evidence rows, chain left to Postgres | 5 |
 | `82d33d8` | Repository and evidence self-checks wired into `npm run check` | — |
 | `1f779bc` | Dashboard and register read through the repository | 9, 10 |
+| `f998b47` | Rule 9(1)(b) judged; 6(3) becomes the one unassessed rule; `Measurement.metric` widened | 15, 16 |
+| `867ea9c` | Rule-pack provenance panel — the rewritten stage beat | 6 |
+| `843b26f` | Findings keyed by position (two rules share `rule_ref` 7(3)) | — |
+| `927bd5f` | `/result/live` reads its scan after hydration, not during | — |
+| `6fcf76b` | Scan + photograph persisted; storage bucket; collision-proof scan ids | 3, 8 |
+| `72a1ff4` | One-command `seed` and `reset` | 14 |
+| `c7abf6b` | Storage self-check in `npm run check`; `seed`/`reset` registered | — |
 
 ## 4. What is verified, and how
 
@@ -124,9 +131,10 @@ Re-run by the orchestrator after each wave, not taken from subagent reports.
 | Cross-device check at 1024×768 and two phones | Physical devices | 22 |
 | Tag the commit and freeze the deployment | Tejas's call, 2026-09-08 | 23 |
 
-**Not attempted, and not blocked on a human** — simply outside this run's brief, so the list above
-is not the whole remainder: **8** (image upload to storage), **14** (one-command reset and demo
-seed), **16** (Rule 6(3) stickers — still in `UNASSESSABLE`).
+**As of 2026-09-06 nothing is merely out of scope** — 8, 14 and 16 were closed by the second run,
+so every remaining item is either in the table above or done. The concentrated risk is that items
+2, 3, 5 and 8 are all **built but never executed** against a real API key or database: they share a
+single point of failure if the credentials arrive late.
 
 ## 7. Landmines found this run
 
@@ -147,57 +155,59 @@ seed), **16** (Rule 6(3) stickers — still in `UNASSESSABLE`).
   ever selected by PDP area, `0` will read as "tiny package" and pick the most lenient band. That is
   invariant-3-consistent, but it should become a deliberate choice rather than a leftover.
 
-## 8. The 2021 rule pack does not change a verdict
+## 8. The 2021 rule pack, and the stage beat built on it
 
-The stage script's live 2026 → 2021 swap expects the verdict to change on screen. **It will not.**
+The stage script's 2:30–5:00 beat was a live 2026 → 2021 pack swap with *the verdict changing on
+screen*. **That cannot be delivered honestly.** `packs/README.md` and `CONTRIBUTING.md` both say the
+2021 pack drops unit sale price, which became mandatory 2022-10-01 — but **no rule in
+`lmpc-2026-07-01.json` implements a unit-sale-price declaration**, and none of the nine present
+rules is sourceable as a post-2021 addition from text already in this repo. Writing one would
+breach invariant 4.
 
-`packs/README.md` and `CONTRIBUTING.md` both say the 2021 pack drops unit sale price, which became
-mandatory on 2022-10-01 — but **no rule in `lmpc-2026-07-01.json` implements a unit-sale-price
-declaration**. The nine rules present cover letter height, width ratio, Table I heights, clear
-space, consumer care, net-quantity SI units, MRP wording, sticker alteration and contrast, and none
-of them is sourceable as a post-2021 addition from text already in this repo. Inventing one would
-break invariant 4, so the 2021 pack carries the same nine rules and the two packs differ **only by
-`rule_pack` attribution**.
+**The beat was therefore rewritten around provenance** and is built, in
+`components/scan/PackProvenance.tsx` on `/result/[id]`: the same photograph judged under both
+packs, side by side, every finding stamped with the pack that produced it, and the agreement stated
+out loud rather than hidden. The argument is stronger for this audience than a verdict flip — a
+Legal Metrology notice citing the wrong version of the rules is challengeable, and enforcement is
+retrospective. The script is in the Projects wiki under `### The 2:30–5:00 provenance beat`.
 
-`scripts/check-packs.mts` now asserts that verdicts are *identical* across packs, so a green line
-cannot be misread as "the demo beat works". When someone sources a genuine divergence, that
-assertion fails on purpose and forces this note to be updated.
+`scripts/check-packs.mts` asserts the two packs reach **identical** verdicts, so a green line can
+never be misread as "the swap works", and the panel's disagreement branch is computed from the
+responses — it will report a real divergence the day one is sourced.
 
-**This needs a human:** either Advik adds the unit-sale-price rule to the 2026 pack with verbatim
-Gazette text, or the stage beat is rewritten to show *provenance* (same packet, two packs, every
-finding stamped with the law it was judged under) rather than a changing verdict. The second is
-honest and needs no new law.
+## 9. Rule 9(1)(b) is now judged; 6(3) is the one unassessed rule
 
-## 9. Rule 9(1)(b): measured, deliberately not judged
+`api/measure.py` returns a Michelson `contrast_ratio` with its own k=2 uncertainty, and both packs
+carry `threshold: 0.15` on `r9-1-b-contrast`. **That 0.15 is an engineering proxy, not law** — the
+Gazette says numerals must contrast "conspicuously" and names no figure. It is set conservatively
+so only clear failures reach VIOLATION; `scripts/check_measure.py` proves `0.091 ± 0.037` is caught
+and `0.541 ± 0.038` is not. Both fixtures gained a `contrast_ratio` of `0.62 ± 0.04` and had their
+`findings` **regenerated by `evaluate()`** — never hand-written, which `check-evaluate.mts`
+asserts. Neither fixture's `overall` moved.
 
-`api/measure.py` now returns a Michelson `contrast_ratio` with its own k=2 uncertainty, proven on
-synthetic low- and high-contrast labels (`0.091 ± 0.037` vs `0.541 ± 0.038`). The **verdict is not
-wired**, and `contrast_min` stays in `UNASSESSABLE`. Three things must land together:
+**Rule 6(3) (stickers) is now the single honestly-unassessed rule.** No sticker detection exists,
+`consistent_with` stays in `UNASSESSABLE`, and `check-evaluate.mts` asserts `not_assessed` contains
+exactly `6(3)`. That is a formal cut, not an oversight.
 
-1. A `threshold` in **both** packs — `check-contract.mjs` requires it on every pack's
-   `contrast_min` rule the moment the predicate leaves `UNASSESSABLE`. `0.15` is validated in
-   `scripts/check_measure.py` as a conservative engineering proxy. **It is not a legal figure** —
-   the Gazette says "conspicuously" and names none.
-2. A `contrast_ratio` measurement in the **frozen fixtures**. Without it the rule returns
-   INDETERMINATE and worst-wins flips `fixtures/scan.compliant.json` from COMPLIANT to
-   INDETERMINATE — the clean-pass fixture stops passing.
-3. `check-evaluate.mts` updated: it currently asserts `not_assessed.length === 1` for `9(1)(b)`.
+## 10. What the demo actually does today, verified 2026-09-06
 
-Step 2 touches the frozen contract, which `AGENTS.md` reserves for all three developers in the same
-conversation. That is why this was left as a cut rather than finished by an agent.
+Walked end to end in a browser, not reasoned about: `/capture` with a real ArUco image →
+`/api/extract` → per-field `/api/measure` → `/api/evaluate` → `sessionStorage` → `/result/live`,
+producing `live_1788621471660`, overall VIOLATION, with `contrast_ratio` present. **No fallback to
+the stub fired.** `/result/[id]` renders the provenance panel with both packs and zero console
+errors. `npm run seed` and `npm run reset` dry-run cleanly with no database.
 
-## 10. The next three things, in order
+## 11. The next three things, in order
 
-1. **Decide the 2021 pack question (§8).** It is the only item here that changes what a judge sees,
-   it needs a human with the Gazette, and every hour closer to the freeze makes rewriting the stage
-   beat harder than adding the rule. Rewriting the beat to show provenance is the cheaper path and
-   costs no new law.
-2. **Apply the migrations and put a real `.env` on the demo machine** (items 4 and 13). Every
-   Supabase path built this run — repository, evidence chain, persistence — is unexercised against a
-   real database, and it is the largest block of unverified code in the repo. One caveat found by
-   the repository agent: `POST /api/scan` persists under `sampleScan`'s own id, so a **second** POST
-   against a real database hits a duplicate-key error on `scans.scan_id`. Fix that before seeding,
-   or the demo seed fails on its second run.
-3. **Settle Rule 9(1)(b) (§9) with all three developers present**, since it needs the frozen
-   fixtures touched. The measurement is done; only the ratification is missing. Do it before the
-   freeze or leave it `UNASSESSABLE` permanently — a half-wired predicate is worse than either.
+1. **Get Supabase credentials in and run the migrations** (items 4 and 13). Items 2, 3, 5 and 8 are
+   all built and none has ever executed against a real database or API key — that is the single
+   largest block of unverified code in the repo, and it is one credential away from being either
+   fine or a demo-day emergency. Run `npm run seed` immediately after; it dry-runs today and will
+   tell you plainly when it starts writing for real.
+2. **Close Gate 1 with the caliper** (item 18). It is the only claim the pitch actually rests on —
+   "our millimetre matches yours" — and no accuracy figure exists for anything. Everything else in
+   this repo is machinery serving that one number, and it has never been checked against a real
+   instrument on real packaging.
+3. **Rehearse the provenance beat specifically** (§8). It is new, it replaces a beat that promised
+   drama, and it deliberately lands on agreement rather than a reveal. It needs saying out loud a
+   few times before 2026-09-11 — the tension belongs in the caliper moment just before it.
