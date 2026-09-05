@@ -32,6 +32,24 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/check_measure.py
 ```
 
+### Running `/api/measure` locally
+
+`api/measure.py` is a Vercel Python function, deliberately outside `app/` — `next dev` alone
+has no route for it and 404s, which the capture page quietly swallows by falling back to
+`/api/scan`'s stub. A "live" local inspection then looks like it worked while measuring nothing.
+
+Run it as a second process and `next dev` picks it up automatically, in development only, via
+the rewrite in `next.config.ts`:
+
+```bash
+.venv/bin/python scripts/serve_measure.py    # serves the same handler on 127.0.0.1:8000
+npm run dev                                  # separate terminal
+```
+
+`POST /api/measure` now reaches the real metrology core instead of 404ing. Production is
+untouched — no rewrite exists outside development, so a Vercel deploy keeps using the actual
+Python function.
+
 ## Day 0 is done when
 
 - [x] Repo exists, deploys, everyone can push
