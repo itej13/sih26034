@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
-import { allScans, sampleScan } from "@/lib/fixtures";
+import { sampleScan } from "@/lib/fixtures";
+import { listScans, repositoryMode, saveScan } from "@/lib/repository";
 
 /**
- * Day 0 stand-in. Returns the frozen fixture so the frontend and the persistence layer
- * both have something real to build against before the vision pipeline exists.
+ * Day 2 persistence boundary. Assembling a real Label Object Model from a photograph is a
+ * separate piece of work (see lib/api.ts's runPipeline and the routes it calls); this route's
+ * job is narrower — make whatever Label Object Model reaches it durable. Until the pipeline is
+ * wired here, that model is still the frozen fixture, so what changes below is not the DATA
+ * but what happens to it: a stub flag becomes a written row.
  *
- * Day 2 (Tejas): POST calls /api/measure and the extraction model, assembles a real Label
- * Object Model, and returns that instead. The response SHAPE does not change — which is the
- * entire point of freezing it today.
+ * X-Scan-Repository says which store actually answered — "supabase" when a real database
+ * wrote or read the row, "fixture" when no database is configured and the frozen fixture
+ * answered instead. Dropping that distinction would let a screen print unpersisted fixture
+ * data as though it were filed evidence.
  */
 
 export async function GET() {
-  return NextResponse.json({ scans: allScans });
+  const scans = await listScans();
+  return NextResponse.json({ scans }, { headers: { "X-Scan-Repository": repositoryMode() } });
 }
 
 export async function POST(request: Request) {
@@ -25,7 +31,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // Not yet processed. Returning the fixture keeps the contract honest rather than
-  // pretending — the flag says so out loud so nobody demos this by accident.
-  return NextResponse.json({ ...sampleScan, stub: true });
+  // sampleScan stands in for the Label Object Model a photograph will eventually produce
+  // (see the header comment). saveScan() is what's new here: this now becomes a row rather
+  // than a response with a "stub" flag bolted on.
+  const saved = await saveScan(sampleScan);
+  return NextResponse.json(saved, { headers: { "X-Scan-Repository": repositoryMode() } });
 }
