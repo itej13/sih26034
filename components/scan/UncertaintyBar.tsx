@@ -60,7 +60,6 @@ export function UncertaintyBar({
             {value.toFixed(2)} ± {uncertainty.toFixed(2)}
             {unit && <span className="font-sans text-xs font-medium text-ink-muted"> {unit}</span>}
           </dd>
-          <dd className="numeral text-[11px] text-ink-faint">k = 2</dd>
         </div>
         <div>
           <dt className="flex items-center gap-1.5 font-semibold text-measure">

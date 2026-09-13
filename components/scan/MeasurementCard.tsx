@@ -18,14 +18,18 @@ function unitFor(metric: string) {
 export function MeasurementCard({ measurement, finding }: { measurement: Measurement; finding?: Finding }) {
   const threshold = finding ? thresholdFromRequired(finding.required) : null;
   const unit = unitFor(measurement.metric);
+  // "Mrp \u00b7 Numeral Height Mm" is what capitalize() makes of the raw contract names. The unit
+  // suffix is dropped from the metric because the unit is printed beside the figure itself.
+  const fieldLabel = measurement.field === "mrp" ? "MRP" : measurement.field.replace("_", " ");
+  const metricLabel = measurement.metric.replace(/_mm$/, "").replaceAll("_", " ");
 
   return (
     <article className="panel p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="eyebrow">Calibrated measurement</p>
-          <h3 className="mt-1 font-semibold capitalize text-ink">
-            {measurement.field.replace("_", " ")} · {measurement.metric.replaceAll("_", " ")}
+          <h3 className="mt-1 font-semibold text-ink">
+            <span className="capitalize">{fieldLabel}</span> · {metricLabel}
           </h3>
         </div>
         {finding && <VerdictBadge verdict={finding.verdict} />}

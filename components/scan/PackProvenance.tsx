@@ -50,6 +50,113 @@ function agreementOf(packs: EvaluateResponse[]): { agree: boolean; disagreements
   return { agree: overallAgree && disagreements.length === 0, disagreements };
 }
 
+/** Every rule any pack judged, in the same order for every column. Uses keyed()'s
+ *  rule_ref#occurrence so the two 7(3) provisos stay on separate rows. */
+function comparisonRows(packs: EvaluateResponse[]) {
+  const keyedPerPack = packs.map((pack) => keyed(pack.findings));
+  const keys = new Set<string>();
+  keyedPerPack.forEach((map) => map.forEach((_finding, key) => keys.add(key)));
+  return [...keys]
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => ({ key, rule_ref: key.split("#")[0], cells: keyedPerPack.map((map) => map.get(key)) }));
+}
+
+function NotAssessed({ entries }: { entries: NotAssessedEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="mt-4 border-t border-line pt-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-ink-faint">Reported to the officer, not judged</p>
+      <ul className="mt-2 space-y-1 text-xs leading-5 text-ink-muted">
+        {entries.map((entry) => <li key={entry.rule_id}><span className="font-semibold text-ink">{entry.rule_ref}</span> — {entry.reason}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Below md the two pack cards used to stack, and the argument of this panel — the same
+ * photograph judged under two laws, side by side — disappeared with them. The comparison is
+ * kept by turning the axis instead of dropping it: one row per rule, one column per pack, so
+ * both laws still answer on the same line at 320px. Verdicts stay whole words.
+ */
+function ComparisonTable({ packs }: { packs: EvaluateResponse[] }) {
+  // Each row's verdict sits under its pack's column heading, so the heading is the stamp and
+  // repeating it per row only wrapped the cell. The desktop card still stamps every line.
+  // ponytail: two columns is the registered pack count. A third pack wraps here rather than
+  // shrinking — give it its own column set (or a scroller) if one is ever registered.
+  return (
+    <div className="panel p-4 md:hidden">
+      <div className="grid grid-cols-2 gap-2 border-b border-line pb-2">
+        {packs.map((pack) => (
+          <div key={pack.rule_pack}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-brand">{pack.rule_pack}</p>
+            <p className="text-[10px] text-ink-faint">from {pack.rule_pack_effective_from}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-b border-line bg-sunken/70 px-1 py-2">
+        {packs.map((pack) => (
+          <div key={pack.rule_pack}>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-faint">Overall</p>
+            <div className="mt-1"><VerdictBadge verdict={pack.overall} /></div>
+          </div>
+        ))}
+      </div>
+
+      <ul>
+        {comparisonRows(packs).map((row) => (
+          <li key={row.key} className="border-b border-line py-3 last:border-b-0">
+            <p className="text-sm font-semibold text-ink">Rule {row.rule_ref}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {row.cells.map((finding, index) => (
+                <div key={packs[index].rule_pack}>
+                  {finding
+                    ? <VerdictBadge verdict={finding.verdict} />
+                    : <span className="text-xs italic text-ink-faint">not present in this pack</span>}
+                </div>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {packs.map((pack) => (
+        <div key={pack.rule_pack}>
+          {pack.not_assessed.length > 0 && <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-brand">{pack.rule_pack}</p>}
+          <NotAssessed entries={pack.not_assessed} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PackCard({ pack }: { pack: EvaluateResponse }) {
+  return (
+    <article className="panel p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow">{pack.rule_pack}</p>
+          <p className="mt-1 text-sm text-ink-muted">Effective from {pack.rule_pack_effective_from}</p>
+        </div>
+        <VerdictBadge verdict={pack.overall} />
+      </div>
+      <div className="mt-4 space-y-3">
+        {byRuleRef(pack.findings).map((finding, index) => (
+          <div key={`${finding.rule_ref}-${index}`} className="flex items-center justify-between gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0">
+            <div>
+              <p className="text-sm font-semibold text-ink">Rule {finding.rule_ref}</p>
+              <p className="text-xs font-medium text-ink-faint">Stamped {finding.rule_pack}</p>
+            </div>
+            <VerdictBadge verdict={finding.verdict} />
+          </div>
+        ))}
+      </div>
+      <NotAssessed entries={pack.not_assessed} />
+    </article>
+  );
+}
+
 export function PackProvenance({ scan }: { scan: Scan }) {
   const [state, setState] = useState<State>({ status: "loading" });
 
@@ -77,11 +184,38 @@ export function PackProvenance({ scan }: { scan: Scan }) {
     return () => { cancelled = true; };
   }, [scan]);
 
-  if (state.status === "loading") return <section className="no-print panel p-5 text-sm text-slate-600" role="status">Loading the rule-pack comparison…</section>;
-  if (state.status === "error") return <section className="no-print panel p-5 text-sm text-red-800" role="alert">The rule-pack comparison is unavailable: {state.message}</section>;
+  if (state.status === "loading") return (
+    <section className="no-print grid gap-5 md:grid-cols-2" role="status" aria-label="Loading the rule-pack comparison">
+      {[0, 1].map((column) => (
+        <div key={column} className="panel animate-pulse p-5">
+          <div className="h-3 w-32 rounded bg-sunken" />
+          <div className="mt-3 h-3 w-40 rounded bg-sunken" />
+          <div className="mt-6 space-y-4">{[0, 1, 2, 3].map((row) => <div key={row} className="h-4 rounded bg-sunken" />)}</div>
+        </div>
+      ))}
+      <span className="sr-only">Loading the rule-pack comparison…</span>
+    </section>
+  );
+
+  if (state.status === "error") return <section className="no-print panel border-l-4 border-l-verdict-violation-border p-5 text-sm text-verdict-violation" role="alert">The rule-pack comparison is unavailable: {state.message}</section>;
 
   const { packs } = state;
   const { agree, disagreements } = agreementOf(packs);
 
-  return <section className="no-print space-y-5"><div className="grid grid-cols-1 gap-5 md:grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">{packs.map((pack) => <article key={pack.rule_pack} className="panel p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">{pack.rule_pack}</p><p className="mt-1 text-sm text-slate-600">Effective from {pack.rule_pack_effective_from}</p></div><VerdictBadge verdict={pack.overall} /></div><div className="mt-4 space-y-3">{byRuleRef(pack.findings).map((finding, index) => <div key={`${finding.rule_ref}-${index}`} className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0"><div><p className="text-sm font-semibold text-slate-900">Rule {finding.rule_ref}</p><p className="text-xs font-medium text-slate-500">Stamped {finding.rule_pack}</p></div><VerdictBadge verdict={finding.verdict} /></div>)}</div>{pack.not_assessed.length > 0 && <div className="mt-4 border-t border-slate-200 pt-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Reported to the officer, not judged</p><ul className="mt-2 space-y-1 text-xs leading-5 text-slate-600">{pack.not_assessed.map((entry) => <li key={entry.rule_id}><span className="font-semibold text-slate-800">{entry.rule_ref}</span> — {entry.reason}</li>)}</ul></div>}</article>)}</div><div className="panel p-5 text-sm text-slate-700">{agree ? <p>Both packs reach the same verdict on this packet. The difference is not the outcome — it is the record: every finding above is stamped with the law that produced it, so a notice can always state which rules were in force when it was issued.</p> : <div><p className="font-semibold text-slate-900">The packs disagree:</p><ul className="mt-2 space-y-1">{disagreements.map((disagreement) => <li key={disagreement.rule_ref}>Rule {disagreement.rule_ref} — {disagreement.by_pack.map((entry) => `${entry.rule_pack}: ${entry.verdict}`).join(", ")}</li>)}</ul></div>}</div></section>;
+  return (
+    <section className="no-print space-y-5">
+      <ComparisonTable packs={packs} />
+      <div className="hidden gap-5 md:grid md:grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
+        {packs.map((pack) => <PackCard key={pack.rule_pack} pack={pack} />)}
+      </div>
+      <div className="panel p-5 text-sm leading-6 text-ink-muted">
+        {agree
+          ? <p>Both packs reach the same verdict on this packet. The difference is not the outcome — it is the record: every finding above is stamped with the law that produced it, so a notice can always state which rules were in force when it was issued.</p>
+          : <div>
+              <p className="font-semibold text-ink">The packs disagree:</p>
+              <ul className="mt-2 space-y-1">{disagreements.map((disagreement) => <li key={disagreement.rule_ref}>Rule {disagreement.rule_ref} — {disagreement.by_pack.map((entry) => `${entry.rule_pack}: ${entry.verdict}`).join(", ")}</li>)}</ul>
+            </div>}
+      </div>
+    </section>
+  );
 }
