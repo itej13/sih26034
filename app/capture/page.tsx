@@ -82,5 +82,107 @@ export default function CapturePage() {
     }
   };
 
-  return <main className="page-shell"><header className="border-b border-slate-200 pb-6"><p className="eyebrow">New inspection</p><h1 className="mt-2 text-3xl font-semibold text-slate-950 sm:text-4xl">Capture the evidence</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Photograph the declaration and calibration card together. The card provides physical scale; the image remains the original inspection record.</p></header><section className="mt-7 grid gap-7 lg:grid-cols-[1.08fr_.92fr]"><div className="panel p-6"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-100 text-sm font-bold text-blue-900">01</span><div><h2 className="text-xl font-semibold text-slate-950">Package photograph</h2><p className="text-sm text-slate-600">Use a phone camera or choose a saved image.</p></div></div><label className="mt-6 block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center transition-colors hover:border-blue-800 hover:bg-blue-50"><span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-2xl font-light text-blue-900 shadow-sm">+</span><span className="mt-4 block font-semibold text-slate-900">Take photo or choose image</span><span className="mt-1 block text-sm text-slate-600">Camera capture is enabled on supported phones</span><input ref={inputRef} className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => selectFile(event.target.files?.[0])} /></label>{preview && <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"><img src={preview} alt="Selected package preview" className="max-h-96 w-full object-contain" /></div>}{indeterminate && <div role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><div className="flex items-center gap-2"><VerdictBadge verdict="INDETERMINATE" /><p className="font-semibold">Calibration could not be verified</p></div><p className="mt-2">{indeterminate}</p><p className="mt-1">Keep the calibration card flat on the same panel as the text, then retake the photograph.</p><button type="button" onClick={() => { setIndeterminate(undefined); inputRef.current?.click(); }} className="mt-3 font-semibold underline underline-offset-2">Choose another image</button></div>}{error && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p className="font-semibold">Inspection could not start</p><p className="mt-1">{error}</p><button type="button" onClick={() => { setError(undefined); inputRef.current?.click(); }} className="mt-3 font-semibold underline underline-offset-2">Choose another image</button></div>}<div className="mt-6 flex flex-wrap items-center gap-3"><button type="button" onClick={runInspection} className="button-primary" disabled={processing || !file}>{processing ? "Processing inspection…" : "Begin calibrated inspection"}</button><Link href="/result/sc_0142" className="button-secondary">Open demo result</Link></div></div><aside className="rounded-2xl bg-slate-950 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Inspection pipeline</p><h2 className="mt-2 text-2xl font-semibold">Five stages. One traceable result.</h2><ol className="mt-7 space-y-5">{stages.map((stage, index) => <li key={stage.label} className="flex gap-3"><span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${processing && index <= activeStage ? "bg-amber-500 text-slate-950" : "border border-slate-600 text-slate-300"}`}>{index < activeStage ? "✓" : index + 1}</span><span><span className={`block text-sm font-semibold ${processing && index === activeStage ? "text-white" : "text-slate-300"}`}>{stage.label}</span><span className="mt-0.5 block text-xs leading-5 text-slate-500">{stage.detail}</span></span></li>)}</ol><div className="mt-8 border-t border-slate-700 pt-5 text-sm leading-6 text-slate-300"><strong className="text-white">Field note:</strong> keep the calibration card flat on the same panel as the text. A card beside a standing pack produces an unreliable scale.</div></aside></section></main>;
+  const stage = stages[activeStage];
+
+  return (
+    <main className="page-shell">
+      <header className="border-b border-line pb-6">
+        <p className="eyebrow">New inspection</p>
+        <h1 className="mt-2 text-3xl font-semibold text-ink sm:text-4xl">Capture the evidence</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">Photograph the declaration and calibration card together. The card provides physical scale; the image remains the original inspection record.</p>
+      </header>
+
+      <section className="mt-7 grid gap-7 lg:grid-cols-[1.08fr_.92fr]">
+        <div className="panel p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <span className="numeral grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-sm font-bold text-brand">01</span>
+            <div>
+              <h2 className="text-xl font-semibold text-ink">Package photograph</h2>
+              <p className="text-sm text-ink-muted">Use a phone camera or choose a saved image.</p>
+            </div>
+          </div>
+
+          <label className="mt-6 block cursor-pointer rounded-xl border-2 border-dashed border-line-strong bg-sunken/60 px-5 py-10 text-center transition-colors hover:border-brand hover:bg-brand-soft focus-within:border-brand focus-within:bg-brand-soft">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-surface text-2xl font-light text-brand shadow-sm">+</span>
+            <span className="mt-4 block font-semibold text-ink">Take photo or choose image</span>
+            <span className="mt-1 block text-sm text-ink-muted">Camera capture is enabled on supported phones</span>
+            <input ref={inputRef} className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => selectFile(event.target.files?.[0])} />
+          </label>
+
+          {preview && (
+            <div className="mt-5 overflow-hidden rounded-xl border border-line bg-sunken">
+              <img src={preview} alt="Selected package preview" className="max-h-96 w-full object-contain" />
+            </div>
+          )}
+
+          {indeterminate && (
+            <div role="status" className="mt-4 rounded-xl border-2 border-verdict-indeterminate-border bg-verdict-indeterminate-surface p-4 text-sm text-verdict-indeterminate">
+              <div className="flex flex-wrap items-center gap-2">
+                <VerdictBadge verdict="INDETERMINATE" />
+                <p className="font-semibold">Calibration could not be verified</p>
+              </div>
+              <p className="mt-2 leading-6">{indeterminate}</p>
+              <p className="mt-1 leading-6">Keep the calibration card flat on the same panel as the text, then retake the photograph.</p>
+              <button type="button" onClick={() => { setIndeterminate(undefined); inputRef.current?.click(); }} className="mt-3 min-h-11 font-semibold underline underline-offset-2">Choose another image</button>
+            </div>
+          )}
+
+          {error && (
+            <div role="alert" className="mt-4 rounded-xl border-2 border-verdict-violation-border bg-verdict-violation-surface p-4 text-sm text-verdict-violation">
+              <p className="font-semibold">Inspection could not start</p>
+              <p className="mt-1 leading-6">{error}</p>
+              <button type="button" onClick={() => { setError(undefined); inputRef.current?.click(); }} className="mt-3 min-h-11 font-semibold underline underline-offset-2">Choose another image</button>
+            </div>
+          )}
+
+          {/*
+            Below lg the dark pipeline aside is the second grid row, so the only feedback an
+            officer had after tapping the button was below the fold: the phone looked like it
+            had done nothing for the several seconds an inspection takes. This repeats the
+            active stage at the point of action, and is hidden at lg where the aside is in view.
+          */}
+          {processing && (
+            <div role="status" aria-live="polite" className="mt-6 rounded-xl border border-line bg-sunken p-4 lg:hidden">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-ink">{stage.label}</p>
+                <p className="numeral text-xs font-medium text-ink-faint">Stage {activeStage + 1} of {stages.length}</p>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-ink-muted">{stage.detail}</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
+                <div className="h-full rounded-full bg-brand transition-[width] duration-500" style={{ width: `${((activeStage + 1) / stages.length) * 100}%` }} />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={runInspection} className="button-primary" disabled={processing || !file}>
+              {processing ? `Stage ${activeStage + 1} of ${stages.length} · ${stage.label}…` : "Begin calibrated inspection"}
+            </button>
+            <Link href="/result/sc_0142" className="button-secondary">Open demo result</Link>
+          </div>
+        </div>
+
+        <aside className="inset-panel">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-inset-ink">Inspection pipeline</p>
+          <h2 className="mt-2 text-2xl font-semibold">Five stages. One traceable result.</h2>
+          <ol className="mt-7 space-y-5">
+            {stages.map((item, index) => (
+              <li key={item.label} className="flex gap-3">
+                <span className={`numeral grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${processing && index <= activeStage ? "bg-white text-inset" : "border border-inset-line text-inset-ink"}`}>
+                  {processing && index < activeStage ? "\u2713" : index + 1}
+                </span>
+                <span>
+                  <span className={`block text-sm font-semibold ${processing && index === activeStage ? "text-white underline underline-offset-4" : "text-inset-ink"}`}>{item.label}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-inset-ink/70">{item.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-8 border-t border-inset-line pt-5 text-sm leading-6 text-inset-ink">
+            <strong className="text-white">Field note:</strong> keep the calibration card flat on the same panel as the text. A card beside a standing pack produces an unreliable scale.
+          </div>
+        </aside>
+      </section>
+    </main>
+  );
 }
