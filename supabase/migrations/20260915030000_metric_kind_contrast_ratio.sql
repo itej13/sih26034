@@ -1,0 +1,15 @@
+-- metric_kind was written on 2026-09-05 at 09:00 with two values. Later the same day
+-- lib/types.ts admitted a third into Measurement["metric"]:
+--
+--     metric: "numeral_height_mm" | "numeral_width_mm" | "contrast_ratio";
+--
+-- Both fixtures carry a contrast_ratio measurement, api/measure.py returns one on every
+-- measurement it takes, and lib/repository.ts's measurementToRow() passes measurement.metric
+-- into the insert verbatim. So against the real schema every saveScan() of a real scan failed:
+--
+--     ERROR 22P02: invalid input value for enum metric_kind: "contrast_ratio"
+--
+-- Nothing caught it because no code path had ever reached a real database. The in-memory double
+-- in lib/repository.ts accepts any string, and its self-check only measures numeral_height_mm.
+-- Confirmed against a live project on 2026-09-15, before any scan had been filed.
+alter type metric_kind add value if not exists 'contrast_ratio';
