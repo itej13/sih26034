@@ -47,9 +47,90 @@ export default function LiveResultPage() {
     try { return JSON.parse(raw) as Scan; } catch { return undefined; }
   }, [raw]);
 
-  if (raw === NOTHING_YET) return <main className="page-shell"><section className="panel p-8"><p className="eyebrow">Live result</p><h1 className="mt-2 text-2xl font-semibold text-slate-950">Restoring the last inspection…</h1><p className="mt-2 text-sm text-slate-600">Reading the result this browser captured.</p></section></main>;
-  if (!scan) return <main className="page-shell"><section className="panel p-8"><p className="eyebrow">Live result</p><h1 className="mt-2 text-2xl font-semibold text-slate-950">No live result is available</h1><p className="mt-2 text-sm text-slate-600">Start a new inspection to view backend output here.</p><Link href="/capture" className="button-primary mt-5">Start inspection</Link></section></main>;
+  if (raw === NOTHING_YET) return (
+    <main className="page-shell">
+      <section className="panel p-8" role="status">
+        <p className="eyebrow">Live result</p>
+        <h1 className="mt-2 text-2xl font-semibold text-ink">Restoring the last inspection…</h1>
+        <p className="mt-2 text-sm text-ink-muted">Reading the result this browser captured.</p>
+      </section>
+    </main>
+  );
+
+  if (!scan) return (
+    <main className="page-shell">
+      <section className="panel p-8">
+        <p className="eyebrow">Live result</p>
+        <h1 className="mt-2 text-2xl font-semibold text-ink">No live result is available</h1>
+        <p className="mt-2 text-sm text-ink-muted">Start a new inspection to view backend output here.</p>
+        <Link href="/capture" className="button-primary mt-5">Start inspection</Link>
+      </section>
+    </main>
+  );
+
   const measurement = scan.measurements[0];
   const finding = measurement ? scan.findings.find((item) => item.rule_ref === "7(3)") : undefined;
-  return <main className="page-shell"><header className="flex flex-wrap items-end justify-between gap-5 border-b border-slate-200 pb-6"><div><p className="eyebrow">Live pipeline result · {scan.scan_id}</p><h1 className="mt-2 text-3xl font-semibold text-slate-950">Inspection result</h1><p className="mt-2 text-sm text-slate-600">Returned by extraction, OpenCV measurement, and rule evaluation APIs.</p></div><div className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-right"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Overall verdict</p><div className="mt-2"><VerdictBadge verdict={scan.overall} /></div></div></header><section className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(350px,0.95fr)]"><AnnotatedImage fields={scan.fields} imageUrl={scan.image_url || "/fixtures/sample-pack.svg"} /><div className="space-y-4"><section className="panel border-l-4 border-l-amber-600 p-5"><p className="eyebrow">Extracted declaration</p><h2 className="mt-1 text-2xl font-semibold text-slate-950">{scan.fields.find((field) => field.key === "mrp")?.text ?? "Declaration"}</h2><p className="mt-2 text-sm text-slate-600">Polygons are supplied by the extraction API. No measurements are derived in the browser.</p></section>{measurement && <MeasurementCard measurement={measurement} finding={finding} />}<section className="panel p-5"><p className="eyebrow">Calibration returned by measurement API</p><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Mode</dt><dd className="font-medium text-slate-900">{scan.calibration.mode}</dd></div><div><dt className="text-slate-500">Scale</dt><dd className="font-medium text-slate-900">{scan.calibration.mm_per_px} mm/px</dd></div><div><dt className="text-slate-500">Scale uncertainty</dt><dd className="font-medium text-slate-900">± {scan.calibration.uncertainty_mm_per_px} mm/px</dd></div><div><dt className="text-slate-500">Rule pack</dt><dd className="font-medium text-slate-900">{scan.rule_pack}</dd></div></dl></section></div></section><section className="mt-10 grid gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(350px,0.95fr)]"><div><p className="eyebrow">Evaluation API output</p><div className="mt-4 space-y-4">{scan.findings.map((item, index) => <FindingCard key={`${item.rule_ref}-${index}`} finding={item} />)}</div></div><FieldList fields={scan.fields} /></section></main>;
+
+  return (
+    <main className="page-shell">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+        <div className="order-2 sm:order-1">
+          <p className="eyebrow">Live pipeline result · <span className="numeral">{scan.scan_id}</span></p>
+          <h1 className="mt-1.5 text-3xl font-semibold text-ink sm:text-4xl">Inspection result</h1>
+          <p className="mt-1.5 text-sm text-ink-muted">Returned by extraction, OpenCV measurement, and rule evaluation APIs.</p>
+        </div>
+        <div className="order-1 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 sm:order-2">
+          <p className="text-[11px] font-bold uppercase leading-4 tracking-[0.16em] text-ink-faint">Overall<br className="hidden sm:block" /> verdict</p>
+          <VerdictBadge verdict={scan.overall} className="text-sm" />
+        </div>
+      </header>
+
+      <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(350px,0.95fr)]">
+        <AnnotatedImage imageUrl={scan.image_url || "/fixtures/sample-pack.svg"} caption="Original capture, unrectified. Declaration polygons are recorded in rectified-image coordinates, so they are not drawn over this photograph." />
+        <div className="space-y-4">
+          <section className="panel border-l-4 border-l-measure p-5">
+            <p className="eyebrow">Extracted declaration</p>
+            <h2 className="mt-1 text-2xl font-semibold text-ink">{scan.fields.find((field) => field.key === "mrp")?.text ?? "Declaration"}</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-muted">Polygons are supplied by the extraction API. No measurements are derived in the browser.</p>
+          </section>
+
+          {measurement && <MeasurementCard measurement={measurement} finding={finding} />}
+
+          <section className="panel p-5">
+            <p className="eyebrow">Calibration returned by measurement API</p>
+            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Mode</dt>
+                <dd className="mt-0.5 font-medium text-ink">{scan.calibration.mode}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Scale</dt>
+                <dd className="numeral mt-0.5 font-medium text-ink">{scan.calibration.mm_per_px} mm/px</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Scale uncertainty</dt>
+                <dd className="numeral mt-0.5 font-medium text-ink">± {scan.calibration.uncertainty_mm_per_px} mm/px</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Rule pack</dt>
+                <dd className="numeral mt-0.5 font-medium text-ink">{scan.rule_pack}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </section>
+
+      <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(350px,0.95fr)]">
+        <div>
+          <p className="eyebrow">Evaluation API output</p>
+          <h2 className="mt-1 text-2xl font-semibold text-ink">Rule-engine output</h2>
+          {/* Positional keys: two different rules both cite rule_ref "7(3)". */}
+          <div className="mt-4 space-y-4">
+            {scan.findings.map((item, index) => <FindingCard key={`${item.rule_ref}-${index}`} finding={item} />)}
+          </div>
+        </div>
+        <FieldList fields={scan.fields} />
+      </section>
+    </main>
+  );
 }

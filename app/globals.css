@@ -1,39 +1,135 @@
 @import "tailwindcss";
 
+/*
+ * The whole design system. Verdict colour is defined once, here, and every component that
+ * shows a verdict routes through the .verdict-* classes below — so adjusting for a projector
+ * that crushes contrast is an edit to three values rather than a hunt through six files.
+ *
+ * Colour never carries a verdict on its own: the three words COMPLIANT / VIOLATION /
+ * INDETERMINATE are the vocabulary, and .verdict-chip only ever decorates them.
+ */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  color-scheme: light;
+
+  --canvas: #f5f7fa;
+  --surface: #ffffff;
+  --sunken: #eef2f7;
+  --line: #d5dde8;
+  --line-strong: #aebbcd;
+
+  --ink: #0b1220;
+  --ink-muted: #45526a;
+  --ink-faint: #667690;
+
+  --brand: #17376e;
+  --brand-strong: #0c2250;
+  --brand-soft: #e6edf9;
+
+  /* One inset colour for both dark asides — capture and dashboard shared a role but not a hue. */
+  --inset: #0c1830;
+  --inset-line: #2b3d60;
+  --inset-ink: #c3d1e8;
+
+  /* The measured-numeral annotation, and the "this is the measurement" accent. */
+  --measure: #9a5406;
+  --measure-soft: #fdf2e0;
+
+  /* Saturated enough to survive a projector; borders are 2px at every call site. */
+  --verdict-compliant: #04624a;
+  --verdict-compliant-surface: #e4f6ee;
+  --verdict-compliant-border: #0a805d;
+
+  --verdict-violation: #9e1017;
+  --verdict-violation-surface: #fce9e9;
+  --verdict-violation-border: #c41d26;
+
+  --verdict-indeterminate: #824c05;
+  --verdict-indeterminate-surface: #fdf2df;
+  --verdict-indeterminate-border: #b5730f;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-inset: var(--inset);
+  --color-inset-line: var(--inset-line);
+  --color-inset-ink: var(--inset-ink);
+
+  --color-measure: var(--measure);
+  --color-measure-soft: var(--measure-soft);
+
+  --color-verdict-compliant: var(--verdict-compliant);
+  --color-verdict-compliant-surface: var(--verdict-compliant-surface);
+  --color-verdict-compliant-border: var(--verdict-compliant-border);
+  --color-verdict-violation: var(--verdict-violation);
+  --color-verdict-violation-surface: var(--verdict-violation-surface);
+  --color-verdict-violation-border: var(--verdict-violation-border);
+  --color-verdict-indeterminate: var(--verdict-indeterminate);
+  --color-verdict-indeterminate-surface: var(--verdict-indeterminate-surface);
+  --color-verdict-indeterminate-border: var(--verdict-indeterminate-border);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--ink);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   line-height: 1.5;
-  background-image: radial-gradient(circle at 100% 0%, rgba(219, 234, 254, 0.48), transparent 32rem);
 }
 
+/* Serif headings against sans body against mono figures: gazette, report, instrument. */
 h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.02em; }
 
-::selection { background: #bfdbfe; color: #0f172a; }
+::selection { background: #cbdcf7; color: var(--ink); }
 
 @layer components {
   .page-shell { @apply mx-auto w-full max-w-7xl px-4 py-7 sm:px-6 lg:px-8; }
-  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.18em] text-blue-800; }
-  .panel { @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-200; }
-  .panel:hover { @apply shadow-md; }
-  .button-primary { @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-900; }
-  .button-secondary { @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-900; }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.18em] text-brand; }
+  .panel { @apply rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(11,18,32,0.05)]; }
+  .inset-panel { @apply rounded-xl bg-inset p-6 text-white; }
+
+  /* Every measured figure. Tabular so columns of numbers line up and a value cannot reflow
+     as it counts; mono so the reading looks like an instrument's, not a headline's. */
+  .numeral { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums slashed-zero; letter-spacing: -0.01em; }
+
+  .button-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60; }
+  .button-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand; }
+  .field-input { @apply mt-2 min-h-11 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm font-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft; }
+
+  /* The verdict word is the message; these only frame it. print-color-adjust keeps the frame
+     on the printed report, where .no-print has already removed everything interactive. */
+  .verdict-chip { @apply inline-flex items-center rounded-md border-2 px-2.5 py-1 text-xs font-bold tracking-wide; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .verdict-compliant { @apply border-verdict-compliant-border bg-verdict-compliant-surface text-verdict-compliant; }
+  .verdict-violation { @apply border-verdict-violation-border bg-verdict-violation-surface text-verdict-violation; }
+  .verdict-indeterminate { @apply border-verdict-indeterminate-border bg-verdict-indeterminate-surface text-verdict-indeterminate; }
 }
 
-@media print { nav, .no-print { display: none !important; } body { background: white; } .page-shell { max-width: none; padding: 0; } .panel { box-shadow: none; break-inside: avoid; } }
+@media print {
+  nav, .no-print { display: none !important; }
+  body { background: white; }
+  .page-shell { max-width: none; padding: 0; }
+  .panel { box-shadow: none; break-inside: avoid; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
